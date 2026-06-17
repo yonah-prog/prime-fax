@@ -27,6 +27,7 @@ export async function sendFax(opts: SendFaxOptions): Promise<TelnyxFax> {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
+      connection_id: process.env.TELNYX_CONNECTION_ID,
       from: opts.from,
       to: opts.to,
       media_url: opts.mediaUrl,
