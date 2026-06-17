@@ -9,6 +9,6 @@ NODE_VERSION = "20"
 
 [deploy]
 startCommand = "npm run db:migrate && next start -p ${PORT:-3000}"
-healthcheckPath = "/"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 60
 restartPolicyType = "on_failure"
