@@ -117,7 +117,7 @@ async function syncInbound() {
 
 // ── SENT FAXES ────────────────────────────────────────────────────────────────
 
-function sentFaxToRows(f: HFSentFax): Parameters<typeof db.insert>[0] extends infer T ? T[] : never[] {
+function sentFaxToRows(f: HFSentFax) {
   const broadcastId = f.recipients.length > 1 ? randomUUID() : null
   const sentAt = new Date(parseInt(f.timestamp) * 1000)
 
