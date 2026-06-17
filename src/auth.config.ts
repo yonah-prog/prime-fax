@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials"
 
 // Lightweight config for middleware — NO db import (edge-runtime safe)
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
