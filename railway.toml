@@ -1,6 +1,12 @@
 [build]
 builder = "nixpacks"
 
+[build.nixpacksConfig]
+providers = ["node"]
+
+[variables]
+NODE_VERSION = "20"
+
 [deploy]
 startCommand = "npm run db:migrate && npm run start"
 healthcheckPath = "/"
