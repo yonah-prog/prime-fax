@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Recipient fax number is required" }, { status: 400 })
   }
 
-  const fromNumber = (form.get("from") as string | null) ?? process.env.TELNYX_FROM_NUMBER!
+  const fromNumber = (form.get("from") as string | null)?.trim() || process.env.TELNYX_FROM_NUMBER!
   const fromName = (form.get("fromName") as string | null) ?? ""
   const recipientName = (form.get("recipientName") as string | null) ?? ""
   const subject = (form.get("subject") as string | null) ?? ""
