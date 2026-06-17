@@ -329,11 +329,17 @@ export default function SendForm() {
 
         {/* Schedule */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            Schedule Send <span className="text-gray-400 font-normal">(leave blank to send now)</span>
-          </label>
-          <input type="datetime-local" value={form.scheduledAt} onChange={(e) => set("scheduledAt", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="flex items-center gap-3 mb-2">
+            <label className="block text-sm font-semibold text-gray-700">Schedule Send</label>
+            <button type="button" onClick={() => set("scheduledAt", form.scheduledAt ? "" : new Date(Date.now() + 3600000).toISOString().slice(0, 16))}
+              className="text-xs text-blue-600 hover:underline">
+              {form.scheduledAt ? "Cancel — send now" : "+ Schedule for later"}
+            </button>
+          </div>
+          {form.scheduledAt && (
+            <input type="datetime-local" value={form.scheduledAt} onChange={(e) => set("scheduledAt", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          )}
         </div>
 
         {/* Upload */}
