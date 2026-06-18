@@ -34,6 +34,19 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const coverSheetTemplates = pgTable("cover_sheet_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  fromName: text("from_name"),
+  coverSheetMessage: text("cover_sheet_message"),
+  contactInfo: text("contact_info"),
+  isDefault: boolean("is_default").default(false).notNull(),
+  fileUrl: text("file_url"),
+  fileName: text("file_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
 export const phoneNumbers = pgTable("phone_numbers", {
   id: uuid("id").primaryKey().defaultRandom(),
   number: text("number").notNull().unique(),
@@ -43,18 +56,8 @@ export const phoneNumbers = pgTable("phone_numbers", {
   telnyxNumberId: text("telnyx_number_id"),
   active: boolean("active").default(true).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
+  coverSheetTemplateId: uuid("cover_sheet_template_id").references(() => coverSheetTemplates.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-})
-
-export const coverSheetTemplates = pgTable("cover_sheet_templates", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  fromName: text("from_name"),
-  coverSheetMessage: text("cover_sheet_message"),
-  contactInfo: text("contact_info"),
-  isDefault: boolean("is_default").default(false).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
 
 export const faxes = pgTable("faxes", {

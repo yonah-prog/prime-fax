@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
-import { faxes } from "@/lib/db/schema"
+import { faxes, coverSheetTemplates } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { generateCoverSheet, prependCoverSheet } from "@/lib/cover-sheet"
@@ -31,12 +31,26 @@ export async function POST(req: Request) {
   const recipientName = (form.get("recipientName") as string | null) ?? ""
   const subject = (form.get("subject") as string | null) ?? ""
   const hasCoverSheet = form.get("hasCoverSheet") === "true"
-  const coverSheetMessage = (form.get("coverSheetMessage") as string | null) ?? ""
-  const contactInfo = (form.get("contactInfo") as string | null) ?? ""
+  const coverSheetTemplateId = (form.get("coverSheetTemplateId") as string | null) || null
+  let coverSheetMessage = (form.get("coverSheetMessage") as string | null) ?? ""
+  let contactInfo = (form.get("contactInfo") as string | null) ?? ""
+  let resolvedFromName = fromName
   const pageSize = (form.get("pageSize") as "letter" | "legal" | "a4" | null) ?? "letter"
   const resolution = (form.get("resolution") as "fine" | "standard" | null) ?? "fine"
   const scheduledAtRaw = form.get("scheduledAt") as string | null
   const scheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null
+
+  // If a template ID was supplied, load it and use its fields as overrides
+  if (coverSheetTemplateId) {
+    const tpl = await db.query.coverSheetTemplates.findFirst({
+      where: eq(coverSheetTemplates.id, coverSheetTemplateId),
+    })
+    if (tpl) {
+      if (tpl.fromName) resolvedFromName = tpl.fromName
+      if (tpl.coverSheetMessage) coverSheetMessage = tpl.coverSheetMessage
+      if (tpl.contactInfo) contactInfo = tpl.contactInfo
+    }
+  }
 
   let fileBytes: Uint8Array | null = null
   let fileName = "fax.pdf"
@@ -51,7 +65,7 @@ export async function POST(req: Request) {
   // Build PDF (cover + doc) once — reused for all recipients in broadcast
   if (hasCoverSheet) {
     const coverBytes = await generateCoverSheet({
-      fromName,
+      fromName: resolvedFromName,
       fromNumber,
       recipientName,
       toNumber: recipients[0],
@@ -92,7 +106,7 @@ export async function POST(req: Request) {
         direction: "outbound",
         status: scheduledAt ? "scheduled" : "queued",
         fromNumber,
-        fromName: fromName || null,
+        fromName: resolvedFromName || null,
         toNumber,
         recipientName: recipientName || null,
         subject: subject || null,

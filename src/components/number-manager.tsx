@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import type { AvailableNumber } from "@/lib/telnyx"
 
 type Tab = "add-existing" | "provision"
+type DetailTab = "users" | "coversheet"
 
 interface NumberWithCounts {
   id: string
@@ -14,9 +15,16 @@ interface NumberWithCounts {
   telnyxNumberId?: string | null
   active: boolean
   isDefault: boolean
+  coverSheetTemplateId?: string | null
   createdAt: Date
   numUsersAssigned: number
   numUsersCanAccess: number
+}
+
+interface TemplateOption {
+  id: string
+  name: string
+  isDefault: boolean
 }
 
 interface UserRow {
@@ -63,6 +71,14 @@ export default function NumberManager() {
   const [usersLoading, setUsersLoading] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
 
+  // Detail panel tab
+  const [detailTab, setDetailTab] = useState<DetailTab>("users")
+
+  // Cover sheet template association
+  const [templates, setTemplates] = useState<TemplateOption[]>([])
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+  const [savingTemplate, setSavingTemplate] = useState(false)
+
   const [error, setError] = useState("")
 
   async function load() {
@@ -74,13 +90,35 @@ export default function NumberManager() {
 
   useEffect(() => { load() }, [])
 
+  useEffect(() => {
+    fetch("/api/templates").then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setTemplates(data.map((t: { id: string; name: string; isDefault: boolean }) => ({ id: t.id, name: t.name, isDefault: t.isDefault })))
+    }).catch(() => {})
+  }, [])
+
   async function loadUsers(number: NumberWithCounts) {
     setSelectedNumber(number)
+    setSelectedTemplateId(number.coverSheetTemplateId ?? "")
+    setDetailTab("users")
     setShowPanel(false)
     setUsersLoading(true)
     const res = await fetch(`/api/numbers/${number.id}/users`)
     if (res.ok) setNumberUsers(await res.json())
     setUsersLoading(false)
+  }
+
+  async function saveCoverSheetTemplate(numberId: string) {
+    setSavingTemplate(true)
+    await fetch(`/api/numbers/${numberId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ coverSheetTemplateId: selectedTemplateId || null }),
+    })
+    setSavingTemplate(false)
+    await load()
+    if (selectedNumber) {
+      setSelectedNumber((prev) => prev ? { ...prev, coverSheetTemplateId: selectedTemplateId || null } : prev)
+    }
   }
 
   async function toggleAccess(userId: string, currentAccess: boolean) {
@@ -445,13 +483,12 @@ export default function NumberManager() {
               </>
             )}
 
-            {/* User assignment panel */}
+            {/* Number detail panel */}
             {!showPanel && selectedNumber && (
               <>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
                   <div className="min-w-0">
-                    <h2 className="text-sm font-semibold text-gray-900">User Access</h2>
-                    <p className="text-xs text-gray-500 font-mono truncate mt-0.5">{selectedNumber.number}</p>
+                    <p className="text-xs text-gray-500 font-mono truncate">{selectedNumber.number}</p>
                     {selectedNumber.label && <p className="text-xs text-gray-400 truncate">{selectedNumber.label}</p>}
                   </div>
                   <button onClick={() => setSelectedNumber(null)} className="text-gray-400 hover:text-gray-600 shrink-0 ml-2">
@@ -461,51 +498,111 @@ export default function NumberManager() {
                   </button>
                 </div>
 
-                <div className="p-4">
-                  <p className="text-xs text-gray-500 mb-3">
-                    Choose which users can send faxes from this number. Users without access won&apos;t see it in the compose dropdown.
-                  </p>
-
-                  {usersLoading ? (
-                    <div className="py-8 text-center text-sm text-gray-400">Loading users…</div>
-                  ) : numberUsers.length === 0 ? (
-                    <div className="py-8 text-center text-sm text-gray-400">No users found.</div>
-                  ) : (
-                    <div className="space-y-1">
-                      {numberUsers.map((u) => (
-                        <label
-                          key={u.id}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-                            u.hasAccess ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={u.hasAccess}
-                            disabled={toggling === u.id}
-                            onChange={() => toggleAccess(u.id, u.hasAccess)}
-                            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                          </div>
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                            u.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
-                          }`}>
-                            {u.role}
-                          </span>
-                          {toggling === u.id && (
-                            <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                          )}
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                {/* Detail tabs */}
+                <div className="flex border-b border-gray-100">
+                  <button
+                    className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${detailTab === "users" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    onClick={() => setDetailTab("users")}
+                  >
+                    User Access
+                  </button>
+                  <button
+                    className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${detailTab === "coversheet" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    onClick={() => setDetailTab("coversheet")}
+                  >
+                    Cover Sheet
+                    {selectedNumber.coverSheetTemplateId && (
+                      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
+                    )}
+                  </button>
                 </div>
+
+                {/* User Access tab */}
+                {detailTab === "users" && (
+                  <div className="p-4">
+                    <p className="text-xs text-gray-500 mb-3">
+                      Choose which users can send faxes from this number.
+                    </p>
+                    {usersLoading ? (
+                      <div className="py-8 text-center text-sm text-gray-400">Loading users…</div>
+                    ) : numberUsers.length === 0 ? (
+                      <div className="py-8 text-center text-sm text-gray-400">No users found.</div>
+                    ) : (
+                      <div className="space-y-1">
+                        {numberUsers.map((u) => (
+                          <label
+                            key={u.id}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
+                              u.hasAccess ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={u.hasAccess}
+                              disabled={toggling === u.id}
+                              onChange={() => toggleAccess(u.id, u.hasAccess)}
+                              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{u.name}</p>
+                              <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                            </div>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
+                              u.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+                            }`}>
+                              {u.role}
+                            </span>
+                            {toggling === u.id && (
+                              <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            )}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Cover Sheet tab */}
+                {detailTab === "coversheet" && (
+                  <div className="p-4 space-y-4">
+                    <p className="text-xs text-gray-500">
+                      Associate a cover sheet template with this number. When users send from this number, they can use this template as their default cover sheet.
+                    </p>
+                    {templates.length === 0 ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                        No templates yet. Create one in <a href="/templates" className="underline">Cover Sheet Templates</a>.
+                      </p>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1.5">Cover Sheet Template</label>
+                          <select
+                            value={selectedTemplateId}
+                            onChange={(e) => setSelectedTemplateId(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="">— None —</option>
+                            {templates.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}{t.isDefault ? " (default)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          onClick={() => saveCoverSheetTemplate(selectedNumber.id)}
+                          disabled={savingTemplate}
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                        >
+                          {savingTemplate ? "Saving…" : "Save Association"}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </>
             )}
 

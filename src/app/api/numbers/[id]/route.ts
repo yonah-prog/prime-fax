@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const body = await req.json()
-  const { label, isDefault, deptName, callerIdStatus } = body
+  const { label, isDefault, deptName, callerIdStatus, coverSheetTemplateId } = body
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
@@ -22,6 +22,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (isDefault !== undefined) set.isDefault = !!isDefault
   if (deptName !== undefined) set.deptName = deptName?.trim() || null
   if (callerIdStatus !== undefined) set.callerIdStatus = callerIdStatus
+  if (coverSheetTemplateId !== undefined) set.coverSheetTemplateId = coverSheetTemplateId || null
 
   const [row] = await db
     .update(phoneNumbers)
