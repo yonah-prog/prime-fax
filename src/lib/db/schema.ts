@@ -108,6 +108,21 @@ export const userPhoneNumbers = pgTable("user_phone_numbers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [unique("upn_user_number").on(t.userId, t.phoneNumberId)])
 
+export const groups = pgTable("groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+export const userGroups = pgTable("user_groups", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  groupId: uuid("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [unique("ug_user_group").on(t.userId, t.groupId)])
+
 export type User = typeof users.$inferSelect
 export type Fax = typeof faxes.$inferSelect
 export type PhoneNumber = typeof phoneNumbers.$inferSelect
@@ -116,3 +131,5 @@ export type Contact = typeof contacts.$inferSelect
 export type BlockedNumber = typeof blockedNumbers.$inferSelect
 export type AuditLog = typeof auditLogs.$inferSelect
 export type UserPhoneNumber = typeof userPhoneNumbers.$inferSelect
+export type Group = typeof groups.$inferSelect
+export type UserGroup = typeof userGroups.$inferSelect

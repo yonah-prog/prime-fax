@@ -1,9 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import type { User } from "@/lib/db/schema"
+import type { PhoneNumber, User } from "@/lib/db/schema"
 
 type SafeUser = Omit<User, "passwordHash">
+
+interface NumberRow extends PhoneNumber {
+  hasAccess: boolean
+}
 
 interface Props {
   initial: SafeUser[]
@@ -26,6 +30,33 @@ export default function UserManager({ initial, currentUserId }: Props) {
   const [resetId, setResetId] = useState<string | null>(null)
   const [resetPw, setResetPw] = useState("")
   const [resetError, setResetError] = useState<string | null>(null)
+
+  // Number assignment panel
+  const [selectedUser, setSelectedUser] = useState<SafeUser | null>(null)
+  const [numberRows, setNumberRows] = useState<NumberRow[]>([])
+  const [numbersLoading, setNumbersLoading] = useState(false)
+  const [toggling, setToggling] = useState<string | null>(null)
+
+  async function loadNumbers(user: SafeUser) {
+    if (selectedUser?.id === user.id) { setSelectedUser(null); return }
+    setSelectedUser(user)
+    setNumbersLoading(true)
+    const res = await fetch(`/api/admin/users/${user.id}/numbers`)
+    if (res.ok) setNumberRows(await res.json())
+    setNumbersLoading(false)
+  }
+
+  async function toggleNumber(phoneNumberId: string, currentAccess: boolean) {
+    setToggling(phoneNumberId)
+    const access = !currentAccess
+    await fetch(`/api/admin/users/${selectedUser!.id}/numbers`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phoneNumberId, access }),
+    })
+    setNumberRows((rows) => rows.map((r) => r.id === phoneNumberId ? { ...r, hasAccess: access } : r))
+    setToggling(null)
+  }
 
   async function addUser() {
     if (!form.name || !form.email || !form.password) { setError("All fields are required."); return }
@@ -68,77 +99,135 @@ export default function UserManager({ initial, currentUserId }: Props) {
     if (!confirm("Remove this user? They will no longer be able to log in.")) return
     await fetch(`/api/admin/users/${id}`, { method: "DELETE" })
     setUsers(users.filter((u) => u.id !== id))
+    if (selectedUser?.id === id) setSelectedUser(null)
   }
 
   return (
-    <div>
-      {/* Add user form */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Add New User</h2>
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <input type="text" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="email" placeholder="Email address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <input type="password" placeholder="Password (min 8 chars)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="staff">Staff</option>
-            <option value="admin">Admin</option>
-          </select>
+    <div className="flex gap-6 items-start">
+      <div className="flex-1 min-w-0">
+        {/* Add user form */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">Add New User</h2>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <input type="text" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="email" placeholder="Email address" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input type="password" placeholder="Password (min 8 chars)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+          <button onClick={addUser} disabled={saving}
+            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60">
+            {saving ? "Creating…" : "Create User"}
+          </button>
         </div>
-        {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-        <button onClick={addUser} disabled={saving}
-          className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60">
-          {saving ? "Creating…" : "Create User"}
-        </button>
+
+        {/* User list */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <th className="px-5 pb-3 pt-4">Name</th>
+                <th className="px-5 pb-3 pt-4">Email</th>
+                <th className="px-5 pb-3 pt-4">Role</th>
+                <th className="px-5 pb-3 pt-4" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {users.map((user) => (
+                <tr
+                  key={user.id}
+                  onClick={() => loadNumbers(user)}
+                  className={`cursor-pointer transition-colors ${selectedUser?.id === user.id ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                >
+                  <td className="px-5 py-3 font-medium text-gray-900">
+                    {user.name}
+                    {user.id === currentUserId && <span className="ml-2 text-xs text-gray-400">(you)</span>}
+                  </td>
+                  <td className="px-5 py-3 text-gray-500">{user.email}</td>
+                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                    {user.id === currentUserId ? (
+                      <RoleBadge role={user.role} />
+                    ) : (
+                      <select value={user.role} onChange={(e) => changeRole(user.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none">
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    )}
+                  </td>
+                  <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-3">
+                      <button onClick={() => { setResetId(user.id); setResetPw(""); setResetError(null) }}
+                        className="text-xs text-blue-600 hover:underline">Reset Password</button>
+                      {user.id !== currentUserId && (
+                        <button onClick={() => removeUser(user.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Click a user row to manage their number access.</p>
       </div>
 
-      {/* User list */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-              <th className="px-5 pb-3 pt-4">Name</th>
-              <th className="px-5 pb-3 pt-4">Email</th>
-              <th className="px-5 pb-3 pt-4">Role</th>
-              <th className="px-5 pb-3 pt-4" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-5 py-3 font-medium text-gray-900">
-                  {user.name}
-                  {user.id === currentUserId && <span className="ml-2 text-xs text-gray-400">(you)</span>}
-                </td>
-                <td className="px-5 py-3 text-gray-500">{user.email}</td>
-                <td className="px-5 py-3">
-                  {user.id === currentUserId ? (
-                    <RoleBadge role={user.role} />
-                  ) : (
-                    <select value={user.role} onChange={(e) => changeRole(user.id, e.target.value)}
-                      className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none">
-                      <option value="staff">Staff</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  )}
-                </td>
-                <td className="px-5 py-3 text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <button onClick={() => { setResetId(user.id); setResetPw(""); setResetError(null) }}
-                      className="text-xs text-blue-600 hover:underline">Reset Password</button>
-                    {user.id !== currentUserId && (
-                      <button onClick={() => removeUser(user.id)} className="text-xs text-red-500 hover:underline">Remove</button>
-                    )}
-                  </div>
-                </td>
-              </tr>
+      {/* Number assignment panel */}
+      {selectedUser && (
+        <div className="w-72 shrink-0 bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Number Access</p>
+              <p className="text-xs text-gray-500 mt-0.5">{selectedUser.name}</p>
+            </div>
+            <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-gray-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {numbersLoading ? (
+              <div className="px-4 py-6 text-center text-sm text-gray-400">Loading…</div>
+            ) : numberRows.length === 0 ? (
+              <div className="px-4 py-6 text-center text-sm text-gray-400">No numbers configured.</div>
+            ) : numberRows.map((num) => (
+              <label
+                key={num.id}
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${num.hasAccess ? "bg-blue-50" : "hover:bg-gray-50"}`}
+              >
+                {toggling === num.id ? (
+                  <svg className="w-4 h-4 animate-spin text-blue-500 shrink-0" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={num.hasAccess}
+                    onChange={() => toggleNumber(num.id, num.hasAccess)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{num.number}</p>
+                  {num.label && <p className="text-xs text-gray-500 truncate">{num.label}</p>}
+                </div>
+                {num.isDefault && (
+                  <span className="ml-auto text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded shrink-0">Default</span>
+                )}
+              </label>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* Reset password modal */}
       {resetId && (
