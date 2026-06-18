@@ -1,10 +1,23 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import type { PhoneNumber } from "@/lib/db/schema"
 import type { AvailableNumber } from "@/lib/telnyx"
 
 type Tab = "add-existing" | "provision"
+
+interface NumberWithCounts {
+  id: string
+  number: string
+  label: string | null
+  deptName?: string | null
+  callerIdStatus?: string
+  telnyxNumberId?: string | null
+  active: boolean
+  isDefault: boolean
+  createdAt: Date
+  numUsersAssigned: number
+  numUsersCanAccess: number
+}
 
 interface UserRow {
   id: string
@@ -15,7 +28,7 @@ interface UserRow {
 }
 
 export default function NumberManager() {
-  const [numbers, setNumbers] = useState<PhoneNumber[]>([])
+  const [numbers, setNumbers] = useState<NumberWithCounts[]>([])
   const [loading, setLoading] = useState(true)
   const [showPanel, setShowPanel] = useState(false)
   const [tab, setTab] = useState<Tab>("add-existing")
@@ -45,7 +58,7 @@ export default function NumberManager() {
   const [updatingCallerId, setUpdatingCallerId] = useState<string | null>(null)
 
   // User assignment panel
-  const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null)
+  const [selectedNumber, setSelectedNumber] = useState<NumberWithCounts | null>(null)
   const [numberUsers, setNumberUsers] = useState<UserRow[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
   const [toggling, setToggling] = useState<string | null>(null)
@@ -61,7 +74,7 @@ export default function NumberManager() {
 
   useEffect(() => { load() }, [])
 
-  async function loadUsers(number: PhoneNumber) {
+  async function loadUsers(number: NumberWithCounts) {
     setSelectedNumber(number)
     setShowPanel(false)
     setUsersLoading(true)
@@ -308,10 +321,8 @@ export default function NumberManager() {
                           )}
                         </div>
                       </td>
-                      {/* Users Assigned placeholder */}
-                      <td className="px-5 py-3 text-gray-400 text-sm">—</td>
-                      {/* Users w/ Access placeholder */}
-                      <td className="px-5 py-3 text-gray-400 text-sm">—</td>
+                      <td className="px-5 py-3 text-gray-500 text-sm">{n.numUsersAssigned ?? 0}</td>
+                      <td className="px-5 py-3 text-gray-500 text-sm">{n.numUsersCanAccess ?? 0}</td>
                       <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         {n.isDefault ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Default</span>

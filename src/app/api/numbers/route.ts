@@ -1,17 +1,30 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
-import { phoneNumbers } from "@/lib/db/schema"
-import { desc } from "drizzle-orm"
+import { phoneNumbers, users, userPhoneNumbers } from "@/lib/db/schema"
+import { eq, desc, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
 export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const rows = await db.query.phoneNumbers.findMany({
-    where: (t, { eq }) => eq(t.active, true),
-    orderBy: [desc(phoneNumbers.isDefault), desc(phoneNumbers.createdAt)],
-  })
+  const rows = await db
+    .select({
+      id: phoneNumbers.id,
+      number: phoneNumbers.number,
+      label: phoneNumbers.label,
+      deptName: phoneNumbers.deptName,
+      callerIdStatus: phoneNumbers.callerIdStatus,
+      telnyxNumberId: phoneNumbers.telnyxNumberId,
+      active: phoneNumbers.active,
+      isDefault: phoneNumbers.isDefault,
+      createdAt: phoneNumbers.createdAt,
+      numUsersAssigned: sql<number>`(SELECT COUNT(*) FROM users WHERE users.assigned_number_id = ${phoneNumbers.id})::int`,
+      numUsersCanAccess: sql<number>`(SELECT COUNT(*) FROM user_phone_numbers WHERE user_phone_numbers.phone_number_id = ${phoneNumbers.id})::int`,
+    })
+    .from(phoneNumbers)
+    .where(eq(phoneNumbers.active, true))
+    .orderBy(desc(phoneNumbers.isDefault), desc(phoneNumbers.createdAt))
   return NextResponse.json(rows)
 }
 

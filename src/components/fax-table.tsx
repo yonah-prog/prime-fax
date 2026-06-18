@@ -142,9 +142,10 @@ interface Props {
   direction: "inbound" | "outbound" | "trash" | "in-progress"
   emptyMessage: string
   phoneLabels?: Record<string, string>
+  imageView?: boolean
 }
 
-export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels = {} }: Props) {
+export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels = {}, imageView = false }: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
@@ -191,12 +192,93 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
     router.refresh()
   }
 
+  const allSelected = faxes.length > 0 && selected.size === faxes.length
+  const someSelected = selected.size > 0
+
+  if (imageView) {
+    return (
+      <div>
+        {/* bulk selection bar — same as table mode */}
+        {someSelected && (
+          <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
+            <span className="font-medium text-blue-700">{selected.size} selected</span>
+            <div className="flex gap-2 ml-auto">
+              {isTrash ? (
+                <>
+                  <button disabled={busy} onClick={() => bulk("restore")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Restore</button>
+                  <button disabled={busy} onClick={() => bulk("delete")} className="px-3 py-1 rounded bg-red-600 text-white font-medium hover:bg-red-700 disabled:opacity-50 text-xs">Delete</button>
+                </>
+              ) : (
+                <button disabled={busy} onClick={() => bulk("trash")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-red-600 font-medium disabled:opacity-50 text-xs">Move to trash</button>
+              )}
+            </div>
+            <button onClick={() => setSelected(new Set())} className="text-gray-400 hover:text-gray-600 text-xs ml-1">✕</button>
+          </div>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 py-4">
+          {faxes.map((fax) => {
+            const isUnread = fax.direction === "inbound" && !fax.readAt
+            const isSelected = selected.has(fax.id)
+            return (
+              <div
+                key={fax.id}
+                onClick={() => router.push(`/faxes/${fax.id}`)}
+                className={`relative rounded-xl border cursor-pointer transition-all hover:shadow-md ${
+                  isSelected ? "border-blue-400 ring-2 ring-blue-200" : "border-gray-200"
+                } ${isUnread ? "bg-blue-50/30" : "bg-white"}`}
+              >
+                {/* Thumbnail area */}
+                <div className="aspect-[8.5/11] bg-gray-50 rounded-t-xl flex items-center justify-center border-b border-gray-100 overflow-hidden">
+                  {fax.fileUrl ? (
+                    <div className="flex flex-col items-center gap-2 text-gray-400">
+                      <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <span className="text-xs font-medium">{fax.pages ?? "?"} page{(fax.pages ?? 0) !== 1 ? "s" : ""}</span>
+                    </div>
+                  ) : (
+                    <svg className="w-10 h-10 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                  )}
+                </div>
+
+                {/* Card metadata */}
+                <div className="p-2.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <StatusCell status={fax.status} />
+                    <span className="text-[10px] text-gray-400">{formatTime(fax.createdAt)}</span>
+                  </div>
+                  <p className="text-xs font-mono text-gray-700 truncate">
+                    {fax.direction === "inbound" ? fax.fromNumber : fax.toNumber}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{formatDay(fax.createdAt)}</p>
+                </div>
+
+                {/* Selection checkbox */}
+                <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleOne(fax.id)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white/80"
+                  />
+                </div>
+
+                {isUnread && (
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-blue-500" />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   if (faxes.length === 0) {
     return <div className="text-center py-16 text-sm text-gray-400">{emptyMessage}</div>
   }
-
-  const allSelected = faxes.length > 0 && selected.size === faxes.length
-  const someSelected = selected.size > 0
 
   return (
     <div>

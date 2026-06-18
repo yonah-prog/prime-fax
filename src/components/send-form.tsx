@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useDropzone } from "react-dropzone"
 import { useRouter, useSearchParams } from "next/navigation"
 import { showToast } from "./toast"
@@ -10,6 +10,7 @@ const DEFAULT_COVER_MESSAGE =
   "This fax contains confidential information intended only for the designated recipient(s). If you received this fax in error, please notify the sender immediately and destroy all copies. Do not disclose, copy, or distribute without authorization. (45 CFR 164.530)"
 
 type SubmitStatus = "idle" | "sending" | "success" | "error"
+type SendTab = "send" | "contacts" | "advanced" | "preview" | "import"
 
 function ToolbarButton({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick?: () => void; active?: boolean }) {
   return (
@@ -48,8 +49,11 @@ export default function SendForm() {
   const [numbers, setNumbers] = useState<PhoneNumber[]>([])
   const [contacts, setContacts] = useState<Contact[]>([])
   const [contactSearch, setContactSearch] = useState("")
-  const [showContacts, setShowContacts] = useState(false)
   const [activeRecipientIdx, setActiveRecipientIdx] = useState(0)
+  const [activeTab, setActiveTab] = useState<SendTab>("send")
+  const [csvPreview, setCsvPreview] = useState<{ number: string; name: string }[]>([])
+  const [csvPasteText, setCsvPasteText] = useState("")
+  const csvFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch("/api/templates").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setTemplates(data) }).catch(() => {})
@@ -89,8 +93,8 @@ export default function SendForm() {
       next[activeRecipientIdx] = { name: c.name, number: c.faxNumber }
       return next
     })
-    setShowContacts(false)
     setContactSearch("")
+    setActiveTab("send")
   }
 
   const filteredContacts = contacts.filter((c) =>
@@ -122,6 +126,8 @@ export default function SendForm() {
     setRecipients([{ name: "", number: "" }])
     setStatus("idle")
     setErrorMsg("")
+    setCsvPreview([])
+    setCsvPasteText("")
   }
 
   const set = (key: keyof typeof defaultForm, value: string | boolean) =>
@@ -131,6 +137,43 @@ export default function SendForm() {
   function removeRecipient(i: number) { setRecipients((r) => r.filter((_, idx) => idx !== i)) }
   function updateRecipient(i: number, field: "name" | "number", value: string) {
     setRecipients((r) => { const n = [...r]; n[i] = { ...n[i], [field]: value }; return n })
+  }
+
+  // CSV parsing helper
+  function parseCsvText(text: string): { number: string; name: string }[] {
+    return text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => {
+        const cols = line.split(",")
+        return { number: (cols[0] ?? "").trim(), name: (cols[1] ?? "").trim() }
+      })
+      .filter((row) => row.number.length > 0)
+  }
+
+  function handleCsvFile(f: File) {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target?.result as string
+      setCsvPreview(parseCsvText(text))
+      setCsvPasteText(text)
+    }
+    reader.readAsText(f)
+  }
+
+  function handleCsvPaste(text: string) {
+    setCsvPasteText(text)
+    setCsvPreview(parseCsvText(text))
+  }
+
+  function applyCsvImport() {
+    if (csvPreview.length === 0) return
+    setRecipients(csvPreview)
+    setCsvPreview([])
+    setCsvPasteText("")
+    setActiveTab("send")
+    showToast(`${csvPreview.length} recipient${csvPreview.length > 1 ? "s" : ""} imported`, "success")
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -182,245 +225,659 @@ export default function SendForm() {
   const isScheduled = !!form.scheduledAt
   const isBroadcast = recipients.length > 1
 
+  const tabs: { id: SendTab; label: string }[] = [
+    { id: "send", label: "Send Fax" },
+    { id: "contacts", label: "Contacts" },
+    { id: "advanced", label: "Advanced" },
+    { id: "preview", label: "Preview" },
+    { id: "import", label: "Import List" },
+  ]
+
   return (
     <form onSubmit={handleSubmit}>
+      {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-lg font-semibold text-gray-900">Compose New Fax</h1>
-        {isBroadcast && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Broadcast × {recipients.length}</span>}
-        {isScheduled && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Scheduled</span>}
+        {isBroadcast && (
+          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">
+            Broadcast × {recipients.length}
+          </span>
+        )}
+        {isScheduled && (
+          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+            Scheduled
+          </span>
+        )}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-1 border-b border-gray-200 pb-3 mb-5">
-        <ToolbarButton label="Send Fax" active icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>} />
-        <ToolbarButton label="Add Recipient" onClick={addRecipient} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>} />
-        <ToolbarButton label="Contacts" onClick={() => setShowContacts((v) => !v)} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" /></svg>} />
-        <ToolbarButton label="Reset Form" onClick={resetForm} icon={<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>} />
-      </div>
-
-      {/* Cover Sheet toggle */}
-      <div className="flex items-center gap-3 mb-1">
-        <span className="text-sm font-medium text-gray-700">Cover Sheet</span>
-        <button type="button" onClick={() => set("hasCoverSheet", !form.hasCoverSheet)}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.hasCoverSheet ? "bg-blue-500" : "bg-gray-300"}`}
-        >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.hasCoverSheet ? "translate-x-4" : "translate-x-0.5"}`} />
-        </button>
-      </div>
-      <p className="text-sm text-gray-500 mb-6">Attach documents, fill out your cover sheet, and send.</p>
-
-      {/* Template selector */}
-      {templates.length > 0 && (
-        <div className="mb-5">
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">Load Template</label>
-          <select defaultValue="" onChange={(e) => applyTemplate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* Tab bar */}
+      <div className="flex items-end gap-0 border-b border-gray-200 mb-5">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              activeTab === tab.id
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300"
+            }`}
           >
-            <option value="" disabled>Select a template…</option>
-            {templates.map((t) => <option key={t.id} value={t.id}>{t.name}{t.isDefault ? " (default)" : ""}</option>)}
-          </select>
+            {tab.label}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center pb-1">
+          <button
+            type="button"
+            onClick={resetForm}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors px-2"
+            title="Reset form"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {/* ── SEND FAX TAB ── */}
+      {activeTab === "send" && (
+        <div className="space-y-5">
+          {/* Recipients */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-semibold text-gray-700">
+                {isBroadcast ? `Recipients (${recipients.length})` : "Receiver"}
+              </label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={addRecipient}
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  + Add recipient
+                </button>
+                {contacts.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("contacts")}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Pick from contacts
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {recipients.map((r, i) => (
+                <div key={i} className="flex gap-2">
+                  <input
+                    type="tel"
+                    value={r.number}
+                    onChange={(e) => updateRecipient(i, "number", e.target.value)}
+                    onFocus={() => setActiveRecipientIdx(i)}
+                    placeholder="Fax number"
+                    required={i === 0}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={r.name}
+                    onChange={(e) => updateRecipient(i, "name", e.target.value)}
+                    placeholder="Name (optional)"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {recipients.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRecipient(i)}
+                      className="text-gray-400 hover:text-red-500 px-1"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* From Name + From Number */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">From Name</label>
+              <input
+                type="text"
+                value={form.fromName}
+                onChange={(e) => set("fromName", e.target.value)}
+                placeholder="Your name or practice"
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">From Number</label>
+              <select
+                value={form.fromNumberId}
+                onChange={(e) => set("fromNumberId", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {numbers.length === 0 && <option value="">No numbers configured</option>}
+                {numbers.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.label ? `${n.label} — ` : ""}{n.number}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Cover Sheet toggle */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Cover Sheet</span>
+            <button
+              type="button"
+              onClick={() => set("hasCoverSheet", !form.hasCoverSheet)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${form.hasCoverSheet ? "bg-blue-500" : "bg-gray-300"}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.hasCoverSheet ? "translate-x-4" : "translate-x-0.5"}`}
+              />
+            </button>
+            {form.hasCoverSheet && (
+              <span className="text-xs text-gray-500">
+                Edit cover sheet fields in{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("advanced")}
+                  className="text-blue-600 hover:underline"
+                >
+                  Advanced
+                </button>
+              </span>
+            )}
+          </div>
+
+          {/* File upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Upload Attachments{" "}
+              <span className="text-gray-400 font-normal">Maximum 50mb file size</span>
+            </label>
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded px-6 py-8 text-center cursor-pointer transition-colors ${
+                isDragActive
+                  ? "border-blue-400 bg-blue-50"
+                  : file
+                  ? "border-green-400 bg-green-50"
+                  : "border-gray-300 hover:border-gray-400 bg-white"
+              }`}
+            >
+              <input {...getInputProps()} />
+              {file ? (
+                <div>
+                  <p className="text-sm font-medium text-green-700">{file.name}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {(file.size / 1024).toFixed(0)} KB · Click to replace
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 text-gray-500">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <span className="text-sm">
+                    {isDragActive ? "Drop it here" : (
+                      <>Drop files here or <strong className="text-gray-700">browse</strong></>
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Error */}
+          {status === "error" && (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {errorMsg}
+            </p>
+          )}
+
+          {/* Send button */}
+          <button
+            type="submit"
+            disabled={recipients.every((r) => !r.number.trim()) || status === "sending" || status === "success"}
+            className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2"
+          >
+            {status === "sending" ? "Sending…" : (
+              <>
+                {isScheduled
+                  ? "Schedule Fax"
+                  : isBroadcast
+                  ? `Send to ${recipients.filter((r) => r.number).length} Recipients`
+                  : "Send Fax"}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
+          </button>
         </div>
       )}
 
-      <div className="space-y-5">
-        {/* Recipients */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-sm font-semibold text-gray-700">
-              {isBroadcast ? `Recipients (${recipients.length})` : "Receiver"}
-            </label>
-            {contacts.length > 0 && (
-              <button type="button" onClick={() => setShowContacts((v) => !v)} className="text-xs text-blue-600 hover:underline">
-                {showContacts ? "Hide contacts" : "Pick from contacts"}
-              </button>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            {recipients.map((r, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  type="tel"
-                  value={r.number}
-                  onChange={(e) => updateRecipient(i, "number", e.target.value)}
-                  onFocus={() => setActiveRecipientIdx(i)}
-                  placeholder="Fax number"
-                  required={i === 0}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <input
-                  type="text"
-                  value={r.name}
-                  onChange={(e) => updateRecipient(i, "name", e.target.value)}
-                  placeholder="Name (optional)"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {recipients.length > 1 && (
-                  <button type="button" onClick={() => removeRecipient(i)} className="text-gray-400 hover:text-red-500 px-1">✕</button>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {showContacts && (
-            <div className="mt-2 border border-gray-200 rounded-lg overflow-hidden shadow-sm">
-              <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
-                <input type="text" value={contactSearch} onChange={(e) => setContactSearch(e.target.value)}
-                  placeholder="Search…" autoFocus className="w-full text-sm bg-transparent focus:outline-none" />
-              </div>
-              <div className="max-h-48 overflow-y-auto divide-y divide-gray-50">
-                {filteredContacts.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-gray-400">No matches</p>
-                ) : filteredContacts.map((c) => (
-                  <button key={c.id} type="button" onClick={() => pickContact(c)}
-                    className="w-full flex items-center justify-between px-3 py-2 hover:bg-blue-50 text-left transition-colors"
-                  >
-                    <div>
-                      <span className="text-sm font-medium text-gray-900">{c.name}</span>
-                      {c.company && <span className="text-xs text-gray-400 ml-2">{c.company}</span>}
-                    </div>
-                    <span className="font-mono text-xs text-gray-500">{c.faxNumber}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* From Name + From Number */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">From Name</label>
-            <input type="text" value={form.fromName} onChange={(e) => set("fromName", e.target.value)}
-              placeholder="Your name or practice"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">From Number</label>
-            <select value={form.fromNumberId} onChange={(e) => set("fromNumberId", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      {/* ── CONTACTS TAB ── */}
+      {activeTab === "contacts" && (
+        <div className="flex flex-col" style={{ minHeight: "420px" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-500">
+              Filling slot{" "}
+              <span className="font-semibold text-gray-800">#{activeRecipientIdx + 1}</span>
+              {recipients[activeRecipientIdx]?.number && (
+                <span className="ml-2 text-gray-400">
+                  (currently: {recipients[activeRecipientIdx].number})
+                </span>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={addRecipient}
+              className="text-xs text-blue-600 hover:underline"
             >
-              {numbers.length === 0 && <option value="">No numbers configured</option>}
-              {numbers.map((n) => <option key={n.id} value={n.id}>{n.label ? `${n.label} — ` : ""}{n.number}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Page Size + Resolution */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Size</label>
-            <select value={form.pageSize} onChange={(e) => set("pageSize", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="letter">Letter</option>
-              <option value="legal">Legal</option>
-              <option value="a4">A4</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Resolution</label>
-            <select value={form.resolution} onChange={(e) => set("resolution", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="fine">Fine (Best quality)</option>
-              <option value="standard">Standard</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Schedule */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <label className="block text-sm font-semibold text-gray-700">Schedule Send</label>
-            <button type="button" onClick={() => set("scheduledAt", form.scheduledAt ? "" : new Date(Date.now() + 3600000).toISOString().slice(0, 16))}
-              className="text-xs text-blue-600 hover:underline">
-              {form.scheduledAt ? "Cancel — send now" : "+ Schedule for later"}
+              + Add slot
             </button>
           </div>
-          {form.scheduledAt && (
-            <input type="datetime-local" value={form.scheduledAt} onChange={(e) => set("scheduledAt", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          )}
-        </div>
 
-        {/* Upload */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-            Upload Attachments <span className="text-gray-400 font-normal">Maximum 50mb file size</span>
-          </label>
-          <div {...getRootProps()}
-            className={`border-2 border-dashed rounded px-6 py-8 text-center cursor-pointer transition-colors ${
-              isDragActive ? "border-blue-400 bg-blue-50" : file ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-gray-400 bg-white"
-            }`}
-          >
-            <input {...getInputProps()} />
-            {file ? (
-              <div>
-                <p className="text-sm font-medium text-green-700">{file.name}</p>
-                <p className="text-xs text-gray-500 mt-1">{(file.size / 1024).toFixed(0)} KB · Click to replace</p>
-              </div>
+          {/* Slot pills */}
+          {recipients.length > 1 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {recipients.map((r, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveRecipientIdx(i)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    activeRecipientIdx === i
+                      ? "bg-blue-100 border-blue-400 text-blue-700"
+                      : "bg-gray-100 border-gray-300 text-gray-600 hover:border-blue-300"
+                  }`}
+                >
+                  {r.name || r.number || `Slot ${i + 1}`}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Search */}
+          <div className="mb-2">
+            <input
+              type="text"
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              placeholder="Search contacts…"
+              autoFocus
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          {/* Contact list */}
+          <div className="flex-1 border border-gray-200 rounded-lg overflow-y-auto divide-y divide-gray-50" style={{ maxHeight: "360px" }}>
+            {contacts.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-gray-400 text-center">
+                No contacts yet. Add some in the Contacts section.
+              </p>
+            ) : filteredContacts.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-gray-400 text-center">No matches for "{contactSearch}"</p>
             ) : (
-              <div className="flex items-center justify-center gap-2 text-gray-500">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                <span className="text-sm">{isDragActive ? "Drop it here" : <>Drop files here or <strong className="text-gray-700">browse</strong></>}</span>
-              </div>
+              filteredContacts.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => pickContact(c)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-blue-50 text-left transition-colors"
+                >
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">{c.name}</span>
+                    {c.company && (
+                      <span className="text-xs text-gray-400 ml-2">{c.company}</span>
+                    )}
+                  </div>
+                  <span className="font-mono text-xs text-gray-500">{c.faxNumber}</span>
+                </button>
+              ))
             )}
           </div>
         </div>
+      )}
 
-        {/* Cover sheet fields */}
-        {form.hasCoverSheet && (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Receiver Name</label>
-                <input type="text" value={recipients[0]?.name ?? ""} onChange={(e) => updateRecipient(0, "name", e.target.value)}
-                  placeholder="Receiver Name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Subject</label>
-                <input type="text" value={form.subject} onChange={(e) => set("subject", e.target.value)}
-                  placeholder="Subject"
-                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            </div>
+      {/* ── ADVANCED TAB ── */}
+      {activeTab === "advanced" && (
+        <div className="space-y-5">
+          {/* Template selector */}
+          {templates.length > 0 && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cover Sheet Message</label>
-              <textarea value={form.coverSheetMessage} onChange={(e) => set("coverSheetMessage", e.target.value)}
-                rows={4} className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Load Template</label>
+              <select
+                defaultValue=""
+                onChange={(e) => applyTemplate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="" disabled>Select a template…</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}{t.isDefault ? " (default)" : ""}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                Your Contact Info <span className="text-gray-400 font-normal">Phone number, company, address, email, etc.</span>
-              </label>
-              <textarea value={form.contactInfo} onChange={(e) => set("contactInfo", e.target.value)}
-                rows={4} placeholder="Contact Information"
-                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />
-            </div>
-          </>
-        )}
-
-        {status === "error" && (
-          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{errorMsg}</p>
-        )}
-
-        <button
-          type="submit"
-          disabled={recipients.every((r) => !r.number.trim()) || status === "sending" || status === "success"}
-          className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2"
-        >
-          {status === "sending" ? "Sending…" : (
-            <>
-              {isScheduled ? "Schedule Fax" : isBroadcast ? `Send to ${recipients.filter(r => r.number).length} Recipients` : "Send Fax"}
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </>
           )}
-        </button>
-      </div>
+
+          {/* Cover sheet fields — only when enabled */}
+          {form.hasCoverSheet ? (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Subject</label>
+                  <input
+                    type="text"
+                    value={form.subject}
+                    onChange={(e) => set("subject", e.target.value)}
+                    placeholder="Subject"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Receiver Name</label>
+                  <input
+                    type="text"
+                    value={recipients[0]?.name ?? ""}
+                    onChange={(e) => updateRecipient(0, "name", e.target.value)}
+                    placeholder="Receiver Name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Cover Sheet Message</label>
+                <textarea
+                  value={form.coverSheetMessage}
+                  onChange={(e) => set("coverSheetMessage", e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Your Contact Info{" "}
+                  <span className="text-gray-400 font-normal">Phone number, company, address, email, etc.</span>
+                </label>
+                <textarea
+                  value={form.contactInfo}
+                  onChange={(e) => set("contactInfo", e.target.value)}
+                  rows={4}
+                  placeholder="Contact Information"
+                  className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="rounded bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-500">
+              Cover sheet is disabled. Enable it on the{" "}
+              <button
+                type="button"
+                onClick={() => setActiveTab("send")}
+                className="text-blue-600 hover:underline"
+              >
+                Send Fax
+              </button>{" "}
+              tab to edit these fields.
+            </div>
+          )}
+
+          {/* Page Size + Resolution */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Page Size</label>
+              <select
+                value={form.pageSize}
+                onChange={(e) => set("pageSize", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="letter">Letter</option>
+                <option value="legal">Legal</option>
+                <option value="a4">A4</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Resolution</label>
+              <select
+                value={form.resolution}
+                onChange={(e) => set("resolution", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="fine">Fine (Best quality)</option>
+                <option value="standard">Standard</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Schedule Send */}
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <label className="block text-sm font-semibold text-gray-700">Schedule Send</label>
+              <button
+                type="button"
+                onClick={() =>
+                  set(
+                    "scheduledAt",
+                    form.scheduledAt ? "" : new Date(Date.now() + 3600000).toISOString().slice(0, 16)
+                  )
+                }
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {form.scheduledAt ? "Cancel — send now" : "+ Schedule for later"}
+              </button>
+            </div>
+            {form.scheduledAt && (
+              <input
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(e) => set("scheduledAt", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PREVIEW TAB ── */}
+      {activeTab === "preview" && (
+        <div>
+          {form.hasCoverSheet ? (
+            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
+              {/* Cover sheet header */}
+              <div className="bg-gray-800 text-white px-6 py-4">
+                <h2 className="text-lg font-bold tracking-wide uppercase">Fax Cover Sheet</h2>
+              </div>
+              <div className="bg-white px-6 py-5 space-y-3 text-sm">
+                <div className="grid grid-cols-[100px_1fr] gap-y-2.5">
+                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">To:</span>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {recipients[0]?.name || <span className="text-gray-400 italic">No name</span>}
+                    </p>
+                    <p className="font-mono text-gray-600 text-xs mt-0.5">
+                      {recipients[0]?.number || <span className="text-gray-400 italic">No number</span>}
+                    </p>
+                    {recipients.length > 1 && (
+                      <p className="text-xs text-gray-400 mt-0.5">+ {recipients.length - 1} more recipient{recipients.length > 2 ? "s" : ""}</p>
+                    )}
+                  </div>
+
+                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">From:</span>
+                  <p className="font-medium text-gray-900">
+                    {form.fromName || <span className="text-gray-400 italic">Unknown</span>}
+                  </p>
+
+                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Subject:</span>
+                  <p className="text-gray-900">
+                    {form.subject || <span className="text-gray-400 italic">No subject</span>}
+                  </p>
+
+                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Date:</span>
+                  <p className="text-gray-900">{new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+
+                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Pages:</span>
+                  <p className="text-gray-900">{file ? "1+ (attachment included)" : "0 (no attachment)"}</p>
+
+                  {file && (
+                    <>
+                      <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">File:</span>
+                      <p className="text-gray-700 font-mono text-xs">{file.name}</p>
+                    </>
+                  )}
+                </div>
+
+                <div className="border-t border-gray-200 pt-3 mt-3">
+                  <p className="font-semibold text-gray-600 uppercase text-xs tracking-wider mb-2">Message:</p>
+                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-xs">
+                    {form.coverSheetMessage || <span className="text-gray-400 italic">No message</span>}
+                  </p>
+                </div>
+
+                {form.contactInfo && (
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="font-semibold text-gray-600 uppercase text-xs tracking-wider mb-2">Contact Info:</p>
+                    <p className="text-gray-700 text-xs whitespace-pre-wrap">{form.contactInfo}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded bg-amber-50 border border-amber-200 px-4 py-4 text-sm text-amber-800">
+              <p className="font-medium mb-1">Cover sheet disabled</p>
+              <p className="text-amber-700">
+                The fax will be sent without a cover sheet. Enable it on the{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("send")}
+                  className="text-blue-600 hover:underline"
+                >
+                  Send Fax
+                </button>{" "}
+                tab.
+              </p>
+              {file && (
+                <p className="mt-2 text-xs text-amber-600">Attached file: <span className="font-mono">{file.name}</span></p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── IMPORT LIST TAB ── */}
+      {activeTab === "import" && (
+        <div className="space-y-5">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-800 mb-1">Import Recipients from CSV</h2>
+            <p className="text-xs text-gray-500">
+              Upload a CSV file with columns: <code className="bg-gray-100 px-1 rounded">number, name</code> (name is optional).
+              Each row becomes a recipient.
+            </p>
+          </div>
+
+          {/* CSV file drop area */}
+          <div
+            className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-8 text-center cursor-pointer hover:border-blue-400 transition-colors bg-white"
+            onClick={() => csvFileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault()
+              const f = e.dataTransfer.files[0]
+              if (f) handleCsvFile(f)
+            }}
+          >
+            <input
+              ref={csvFileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleCsvFile(f)
+              }}
+            />
+            <svg className="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <p className="text-sm text-gray-600">
+              Drop a <strong>.csv</strong> file here or <span className="text-blue-600 font-medium">browse</span>
+            </p>
+            <p className="text-xs text-gray-400 mt-1">e.g. 15551234567, Dr. Smith</p>
+          </div>
+
+          {/* Or paste manually */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Or paste CSV text
+            </label>
+            <textarea
+              value={csvPasteText}
+              onChange={(e) => handleCsvPaste(e.target.value)}
+              rows={5}
+              placeholder={"15551234567, Dr. Smith\n15559876543, Jane Doe\n15550001111"}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+            />
+          </div>
+
+          {/* Preview table */}
+          {csvPreview.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-2">
+                Preview — {csvPreview.length} recipient{csvPreview.length > 1 ? "s" : ""}
+              </p>
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500 w-8">#</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Number</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-gray-500">Name</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {csvPreview.slice(0, 20).map((row, i) => (
+                      <tr key={i} className="hover:bg-gray-50">
+                        <td className="px-3 py-1.5 text-xs text-gray-400">{i + 1}</td>
+                        <td className="px-3 py-1.5 font-mono text-gray-900">{row.number}</td>
+                        <td className="px-3 py-1.5 text-gray-600">{row.name || <span className="text-gray-300 italic">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {csvPreview.length > 20 && (
+                  <p className="text-xs text-gray-400 px-3 py-2 border-t border-gray-100">
+                    … and {csvPreview.length - 20} more rows
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={applyCsvImport}
+                className="mt-3 w-full py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded transition-colors"
+              >
+                Apply — set {csvPreview.length} recipient{csvPreview.length > 1 ? "s" : ""}
+              </button>
+            </div>
+          )}
+
+          {csvPreview.length === 0 && csvPasteText.length > 0 && (
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              No valid rows found. Make sure each line has at least a phone number.
+            </p>
+          )}
+        </div>
+      )}
     </form>
   )
 }
