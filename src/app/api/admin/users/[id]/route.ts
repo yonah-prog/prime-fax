@@ -30,7 +30,22 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ ok: true })
   }
 
-  return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
+  const updates: Record<string, unknown> = {}
+  if (body.assignedNumberId !== undefined) updates.assignedNumberId = body.assignedNumberId
+  if (body.canViewInbound !== undefined) updates.canViewInbound = !!body.canViewInbound
+  if (body.canViewAllSent !== undefined) updates.canViewAllSent = !!body.canViewAllSent
+  if (body.canDelete !== undefined) updates.canDelete = !!body.canDelete
+  if (body.secureMode !== undefined) updates.secureMode = !!body.secureMode
+  if (body.require2FA !== undefined) updates.require2FA = !!body.require2FA
+  if (body.locked !== undefined) updates.locked = !!body.locked
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
+  }
+
+  await db.update(users).set(updates).where(eq(users.id, id))
+  audit({ userId: session.user?.id, userEmail: session.user?.email, action: "permissions_updated", resourceType: "user", resourceId: id, meta: updates })
+  return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {

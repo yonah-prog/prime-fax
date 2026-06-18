@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
-import { faxes, phoneNumbers } from "@/lib/db/schema"
-import { and, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc } from "drizzle-orm"
+import { faxes, phoneNumbers, users } from "@/lib/db/schema"
+import { and, asc, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"
@@ -16,7 +16,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{
     q?: string; from?: string; to?: string; page?: string
-    hideFailed?: string; unread?: string; number?: string
+    hideFailed?: string; unread?: string; number?: string; userId?: string
   }>
 }) {
   const p = await searchParams
@@ -29,10 +29,11 @@ export default async function InboxPage({
   if (p.hideFailed === "1") base.push(ne(faxes.status, "failed"))
   if (p.unread === "1") base.push(isNull(faxes.readAt))
   if (p.number) base.push(eq(faxes.toNumber, p.number))
+  if (p.userId) base.push(eq(faxes.userId, p.userId))
 
   const where = and(...base)
 
-  const [totalRes, failedRes, unreadRes, rows, numbers] = await Promise.all([
+  const [totalRes, failedRes, unreadRes, rows, numbers, allUsers] = await Promise.all([
     db.select({ value: count() }).from(faxes).where(where),
     db.select({ value: count() }).from(faxes).where(
       and(eq(faxes.direction, "inbound"), isNull(faxes.trashedAt), eq(faxes.status, "failed"))
@@ -42,6 +43,7 @@ export default async function InboxPage({
     ),
     db.query.faxes.findMany({ where, orderBy: [desc(faxes.createdAt)], limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
     db.query.phoneNumbers.findMany({ where: eq(phoneNumbers.active, true) }),
+    db.query.users.findMany({ columns: { id: true, name: true }, orderBy: [asc(users.name)] }),
   ])
 
   const total = totalRes[0]?.value ?? 0
@@ -61,6 +63,7 @@ export default async function InboxPage({
           unreadCount={unreadRes[0]?.value ?? 0}
           total={total}
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
+          users={allUsers}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

@@ -37,6 +37,13 @@ export default function NumberManager() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editLabel, setEditLabel] = useState("")
 
+  // Edit dept inline
+  const [editingDeptId, setEditingDeptId] = useState<string | null>(null)
+  const [editDept, setEditDept] = useState("")
+
+  // Caller ID status update
+  const [updatingCallerId, setUpdatingCallerId] = useState<string | null>(null)
+
   // User assignment panel
   const [selectedNumber, setSelectedNumber] = useState<PhoneNumber | null>(null)
   const [numberUsers, setNumberUsers] = useState<UserRow[]>([])
@@ -92,6 +99,27 @@ export default function NumberManager() {
       body: JSON.stringify({ label: editLabel }),
     })
     setEditingId(null)
+    await load()
+  }
+
+  async function saveDept(id: string) {
+    await fetch(`/api/numbers/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deptName: editDept.trim() || null }),
+    })
+    setEditingDeptId(null)
+    await load()
+  }
+
+  async function saveCallerIdStatus(id: string, value: string) {
+    setUpdatingCallerId(id)
+    await fetch(`/api/numbers/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ callerIdStatus: value }),
+    })
+    setUpdatingCallerId(null)
     await load()
   }
 
@@ -188,6 +216,10 @@ export default function NumberManager() {
                 <tr className="border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wide text-left">
                   <th className="px-5 py-3">Number</th>
                   <th className="px-5 py-3">Label</th>
+                  <th className="px-5 py-3">Dept</th>
+                  <th className="px-5 py-3">Caller ID</th>
+                  <th className="px-5 py-3">Users Assigned</th>
+                  <th className="px-5 py-3">Users w/ Access</th>
                   <th className="px-5 py-3">Default</th>
                   <th className="px-5 py-3">Access</th>
                   <th className="px-5 py-3" />
@@ -225,6 +257,61 @@ export default function NumberManager() {
                           </button>
                         )}
                       </td>
+                      {/* Dept column */}
+                      <td className="px-5 py-3 text-gray-600" onClick={(e) => e.stopPropagation()}>
+                        {editingDeptId === n.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              autoFocus
+                              value={editDept}
+                              onChange={(e) => setEditDept(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") saveDept(n.id); if (e.key === "Escape") setEditingDeptId(null) }}
+                              className="px-2 py-1 border border-gray-300 rounded text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button onClick={() => saveDept(n.id)} className="text-xs text-blue-600 hover:underline">Save</button>
+                            <button onClick={() => setEditingDeptId(null)} className="text-xs text-gray-400 hover:underline">Cancel</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setEditingDeptId(n.id); setEditDept((n as unknown as { deptName?: string }).deptName ?? "") }}
+                            className="text-gray-600 hover:text-gray-900 hover:underline"
+                          >
+                            {(n as unknown as { deptName?: string }).deptName || <span className="text-gray-300 italic">Add dept</span>}
+                          </button>
+                        )}
+                      </td>
+                      {/* Caller ID column */}
+                      <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={(n as unknown as { callerIdStatus?: string }).callerIdStatus ?? "pending"}
+                            onChange={(e) => saveCallerIdStatus(n.id, e.target.value)}
+                            disabled={updatingCallerId === n.id}
+                            className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                            style={{
+                              color: (n as unknown as { callerIdStatus?: string }).callerIdStatus === "verified"
+                                ? "#16a34a"
+                                : (n as unknown as { callerIdStatus?: string }).callerIdStatus === "failed"
+                                ? "#dc2626"
+                                : "#ca8a04",
+                            }}
+                          >
+                            <option value="pending" style={{ color: "#ca8a04" }}>pending</option>
+                            <option value="verified" style={{ color: "#16a34a" }}>verified</option>
+                            <option value="failed" style={{ color: "#dc2626" }}>failed</option>
+                          </select>
+                          {updatingCallerId === n.id && (
+                            <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          )}
+                        </div>
+                      </td>
+                      {/* Users Assigned placeholder */}
+                      <td className="px-5 py-3 text-gray-400 text-sm">—</td>
+                      {/* Users w/ Access placeholder */}
+                      <td className="px-5 py-3 text-gray-400 text-sm">—</td>
                       <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         {n.isDefault ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Default</span>

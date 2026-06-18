@@ -58,7 +58,34 @@ function ToggleRow({
 // ─────────────────────────────────────────
 function GeneralTab() {
   const [name, setName] = useState("")
+  const [timezone, setTimezone] = useState("America/New_York")
+  const [defaultPage, setDefaultPage] = useState("/sent")
+  const [markAsRead, setMarkAsRead] = useState("any")
+  const [downloadFormat, setDownloadFormat] = useState("pdf")
+  const [defaultPageSize, setDefaultPageSize] = useState("letter")
+  const [defaultResolution, setDefaultResolution] = useState("fine")
+  const [secureMode, setSecureMode] = useState<"disabled" | "enabled">("disabled")
+  const [require2FA, setRequire2FA] = useState("disabled")
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/settings/profile")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.name !== undefined) setName(data.name ?? "")
+        if (data.timezone !== undefined) setTimezone(data.timezone ?? "America/New_York")
+        if (data.defaultPage !== undefined) setDefaultPage(data.defaultPage ?? "/sent")
+        if (data.markAsRead !== undefined) setMarkAsRead(data.markAsRead ?? "any")
+        if (data.downloadFormat !== undefined) setDownloadFormat(data.downloadFormat ?? "pdf")
+        if (data.defaultPageSize !== undefined) setDefaultPageSize(data.defaultPageSize ?? "letter")
+        if (data.defaultResolution !== undefined) setDefaultResolution(data.defaultResolution ?? "fine")
+        if (data.secureMode !== undefined) setSecureMode(data.secureMode ? "enabled" : "disabled")
+        if (data.require2FA !== undefined) setRequire2FA(data.require2FA ? "email" : "disabled")
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault()
@@ -66,11 +93,25 @@ function GeneralTab() {
     const res = await fetch("/api/settings/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({
+        name,
+        timezone,
+        defaultPage,
+        markAsRead,
+        downloadFormat,
+        defaultPageSize,
+        defaultResolution,
+        secureMode: secureMode === "enabled",
+        require2FA: require2FA !== "disabled",
+      }),
     })
     setSaving(false)
     if (res.ok) showToast("Settings saved")
     else showToast("Failed to save", "error")
+  }
+
+  if (loading) {
+    return <div className="py-8 text-sm text-gray-400">Loading…</div>
   }
 
   return (
@@ -86,7 +127,7 @@ function GeneralTab() {
       </div>
       <div>
         <label className={labelCls}>Time Zone</label>
-        <select className={selectCls} defaultValue="America/New_York">
+        <select className={selectCls} value={timezone} onChange={(e) => setTimezone(e.target.value)}>
           <option value="America/New_York">(GMT −04:00) Eastern Time — New York</option>
           <option value="America/Chicago">(GMT −05:00) Central Time — Chicago</option>
           <option value="America/Denver">(GMT −06:00) Mountain Time — Denver</option>
@@ -102,7 +143,7 @@ function GeneralTab() {
       </div>
       <div>
         <label className={labelCls}>Default Dashboard Page</label>
-        <select className={selectCls} defaultValue="/sent">
+        <select className={selectCls} value={defaultPage} onChange={(e) => setDefaultPage(e.target.value)}>
           <option value="/sent">Sent Faxes</option>
           <option value="/inbox">Received Faxes</option>
           <option value="/dashboard">Dashboard</option>
@@ -113,7 +154,7 @@ function GeneralTab() {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Outbound Page Size</label>
-          <select className={selectCls} defaultValue="letter">
+          <select className={selectCls} value={defaultPageSize} onChange={(e) => setDefaultPageSize(e.target.value)}>
             <option value="letter">Letter</option>
             <option value="legal">Legal</option>
             <option value="a4">A4</option>
@@ -121,7 +162,7 @@ function GeneralTab() {
         </div>
         <div>
           <label className={labelCls}>Outbound Resolution</label>
-          <select className={selectCls} defaultValue="fine">
+          <select className={selectCls} value={defaultResolution} onChange={(e) => setDefaultResolution(e.target.value)}>
             <option value="fine">Fine (Best quality)</option>
             <option value="standard">Standard</option>
           </select>
@@ -130,14 +171,14 @@ function GeneralTab() {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Mark as Read</label>
-          <select className={selectCls} defaultValue="any">
+          <select className={selectCls} value={markAsRead} onChange={(e) => setMarkAsRead(e.target.value)}>
             <option value="any">Read by Any User</option>
             <option value="self">Read by Recipient Only</option>
           </select>
         </div>
         <div>
           <label className={labelCls}>Fax File Download Format</label>
-          <select className={selectCls} defaultValue="pdf">
+          <select className={selectCls} value={downloadFormat} onChange={(e) => setDownloadFormat(e.target.value)}>
             <option value="pdf">PDF</option>
           </select>
         </div>
@@ -152,7 +193,11 @@ function GeneralTab() {
               <label className={`${labelCls} mb-0`}>Secure Mode</label>
             </div>
             <p className="text-xs text-gray-500 mb-2">No Attachments In Emails</p>
-            <select className={`${selectCls} max-w-xs`} defaultValue="disabled">
+            <select
+              className={`${selectCls} max-w-xs`}
+              value={secureMode}
+              onChange={(e) => setSecureMode(e.target.value as "disabled" | "enabled")}
+            >
               <option value="disabled">Disabled</option>
               <option value="enabled">Enabled</option>
             </select>
@@ -163,7 +208,11 @@ function GeneralTab() {
               <label className={`${labelCls} mb-0`}>Two-Factor Authentication</label>
             </div>
             <p className="text-xs text-gray-500 mb-2">Send a numeric code to your cell phone or email / use authenticator app.</p>
-            <select className={`${selectCls} max-w-xs`} defaultValue="disabled">
+            <select
+              className={`${selectCls} max-w-xs`}
+              value={require2FA}
+              onChange={(e) => setRequire2FA(e.target.value)}
+            >
               <option value="disabled">Disabled</option>
               <option value="email">Email</option>
               <option value="sms">SMS</option>
