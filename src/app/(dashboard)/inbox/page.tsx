@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
-import { and, asc, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc } from "drizzle-orm"
+import { and, asc, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc, sql } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"
@@ -16,7 +16,7 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<{
     q?: string; from?: string; to?: string; page?: string
-    hideFailed?: string; unread?: string; number?: string; userId?: string
+    hideFailed?: string; unread?: string; number?: string; userId?: string; imageView?: string
   }>
 }) {
   const p = await searchParams
@@ -33,7 +33,7 @@ export default async function InboxPage({
 
   const where = and(...base)
 
-  const [totalRes, failedRes, unreadRes, rows, numbers, allUsers] = await Promise.all([
+  const [totalRes, failedRes, unreadRes, pagesRes, rows, numbers, allUsers] = await Promise.all([
     db.select({ value: count() }).from(faxes).where(where),
     db.select({ value: count() }).from(faxes).where(
       and(eq(faxes.direction, "inbound"), isNull(faxes.trashedAt), eq(faxes.status, "failed"))
@@ -41,12 +41,14 @@ export default async function InboxPage({
     db.select({ value: count() }).from(faxes).where(
       and(eq(faxes.direction, "inbound"), isNull(faxes.trashedAt), isNull(faxes.readAt))
     ),
+    db.select({ value: sql<number>`COALESCE(SUM(${faxes.pages}), 0)::int` }).from(faxes).where(where),
     db.query.faxes.findMany({ where, orderBy: [desc(faxes.createdAt)], limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
     db.query.phoneNumbers.findMany({ where: eq(phoneNumbers.active, true) }),
     db.query.users.findMany({ columns: { id: true, name: true }, orderBy: [asc(users.name)] }),
   ])
 
   const total = totalRes[0]?.value ?? 0
+  const totalFaxPages = pagesRes[0]?.value ?? 0
   const totalPages = Math.ceil(total / PER_PAGE)
   const phoneLabels = Object.fromEntries(numbers.map((n) => [n.number, n.label ?? ""]))
 
@@ -62,12 +64,13 @@ export default async function InboxPage({
           failedCount={failedRes[0]?.value ?? 0}
           unreadCount={unreadRes[0]?.value ?? 0}
           total={total}
+          totalFaxPages={totalFaxPages}
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">
-        <FaxTable faxes={rows} direction="inbound" emptyMessage="No received faxes matching your filters." phoneLabels={phoneLabels} />
+        <FaxTable faxes={rows} direction="inbound" emptyMessage="No received faxes matching your filters." phoneLabels={phoneLabels} imageView={p.imageView === "1"} />
       </div>
       <Suspense><Pagination page={page} totalPages={totalPages} /></Suspense>
     </div>

@@ -30,6 +30,16 @@ function IcoUnread() {
   )
 }
 
+function IcoImage() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="3" width="16" height="14" rx="2" />
+      <circle cx="7.5" cy="8" r="1.5" />
+      <path d="M2 14l4-4 3 3 2-2 5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 function IcoDownload() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -89,6 +99,7 @@ interface Props {
   failedCount?: number
   unreadCount?: number
   total?: number
+  totalFaxPages?: number
   isTrash?: boolean
   phoneNumbers?: { number: string; label: string | null }[]
   users?: { id: string; name: string }[]
@@ -98,6 +109,7 @@ export default function FaxToolbar({
   failedCount = 0,
   unreadCount = 0,
   total = 0,
+  totalFaxPages = 0,
   isTrash = false,
   phoneNumbers = [],
   users = [],
@@ -112,6 +124,7 @@ export default function FaxToolbar({
   const showDateRange = searchParams.get("dateRange") === "1"
   const selectedNumber = searchParams.get("number") ?? ""
   const selectedUserId = searchParams.get("userId") ?? ""
+  const imageView = searchParams.get("imageView") === "1"
 
   const update = useCallback(
     (key: string, value: string | null) => {
@@ -143,6 +156,7 @@ export default function FaxToolbar({
       <div className="flex items-center gap-0.5 flex-wrap border-b border-gray-100 pb-2">
         <Btn icon={<IcoCalendar />} label="Date Range" active={showDateRange} onClick={() => toggle("dateRange", "1")} />
         <Btn icon={<IcoHideFailed />} label="Hide Failed" count={failedCount} active={hideFailed} onClick={() => toggle("hideFailed", "1")} />
+        <Btn icon={<IcoImage />} label="Image View" active={imageView} onClick={() => toggle("imageView", "1")} />
         <Btn icon={<IcoUnread />} label="Unread Only" count={unreadCount} active={unreadOnly} onClick={() => toggle("unread", "1")} />
         <Btn icon={<IcoDownload />} label="Download All" />
         {isTrash ? (
@@ -214,6 +228,7 @@ export default function FaxToolbar({
         )}
         <span className="text-xs text-gray-400 ml-auto">
           {total.toLocaleString()} fax{total !== 1 ? "es" : ""}
+          {totalFaxPages > 0 && ` · ${totalFaxPages.toLocaleString()} page${totalFaxPages !== 1 ? "s" : ""}`}
         </span>
         {hasFilters && (
           <button onClick={() => router.push(pathname)} className="text-xs text-gray-400 hover:text-gray-700 underline">

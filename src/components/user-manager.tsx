@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import type { PhoneNumber, User } from "@/lib/db/schema"
 
 type SafeUser = Omit<User, "passwordHash">
@@ -190,7 +190,42 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {users.map((user) => {
+                {(() => {
+                  // Group users by assignedNumberId
+                  const grouped = new Map<string | null, SafeUser[]>()
+                  for (const u of users) {
+                    const key = u.assignedNumberId ?? null
+                    if (!grouped.has(key)) grouped.set(key, [])
+                    grouped.get(key)!.push(u)
+                  }
+                  const assignedKeys = Array.from(grouped.keys())
+                    .filter((k) => k !== null)
+                    .sort((a, b) => {
+                      const nA = numbers.find((n) => n.id === a)
+                      const nB = numbers.find((n) => n.id === b)
+                      return (nA?.label ?? nA?.number ?? "").localeCompare(nB?.label ?? nB?.number ?? "")
+                    })
+                  const orderedKeys = [...assignedKeys, null].filter((k) => grouped.has(k))
+
+                  return orderedKeys.map((key) => {
+                    const groupUsers = grouped.get(key) ?? []
+                    const numInfo = key ? numbers.find((n) => n.id === key) : null
+                    return (
+                      <Fragment key={key ?? "unassigned"}>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          <td colSpan={12} className="px-4 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                {numInfo ? (numInfo.label ?? numInfo.number) : "Unassigned"}
+                              </span>
+                              {numInfo?.label && (
+                                <span className="text-xs font-mono text-gray-400">{numInfo.number}</span>
+                              )}
+                              <span className="text-xs text-gray-400">· {groupUsers.length} user{groupUsers.length !== 1 ? "s" : ""}</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {groupUsers.map((user) => {
                   const isCurrentUser = user.id === currentUserId
                   const isSelected = selectedUser?.id === user.id
                   const count = accessCount(user)
@@ -352,6 +387,10 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
                     </tr>
                   )
                 })}
+                      </Fragment>
+                    )
+                  })
+                })()}
               </tbody>
             </table>
           </div>
