@@ -1,8 +1,9 @@
+import type { Session } from "next-auth"
 import { auth } from "@/auth"
 import { NextResponse } from "next/server"
 
-export async function requireAdmin(): Promise<{ session: Awaited<ReturnType<typeof auth>>; error: NextResponse | null }> {
-  const session = await auth()
+export async function requireAdmin(): Promise<{ session: Session | null; error: NextResponse | null }> {
+  const session = await auth() as Session | null
   if (!session) {
     return { session: null, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
   }
