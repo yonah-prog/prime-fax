@@ -91,6 +91,7 @@ interface Props {
   total?: number
   isTrash?: boolean
   phoneNumbers?: { number: string; label: string | null }[]
+  users?: { id: string; name: string }[]
 }
 
 export default function FaxToolbar({
@@ -99,6 +100,7 @@ export default function FaxToolbar({
   total = 0,
   isTrash = false,
   phoneNumbers = [],
+  users = [],
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -109,6 +111,7 @@ export default function FaxToolbar({
   const unreadOnly = searchParams.get("unread") === "1"
   const showDateRange = searchParams.get("dateRange") === "1"
   const selectedNumber = searchParams.get("number") ?? ""
+  const selectedUserId = searchParams.get("userId") ?? ""
 
   const update = useCallback(
     (key: string, value: string | null) => {
@@ -131,7 +134,8 @@ export default function FaxToolbar({
     searchParams.get("to") ||
     searchParams.get("hideFailed") ||
     searchParams.get("unread") ||
-    searchParams.get("number")
+    searchParams.get("number") ||
+    searchParams.get("userId")
 
   return (
     <div className="mb-4 space-y-2">
@@ -190,6 +194,20 @@ export default function FaxToolbar({
             {phoneNumbers.map((p) => (
               <option key={p.number} value={p.number}>
                 {p.number}{p.label ? ` — ${p.label}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
+        {users.length > 0 && (
+          <select
+            value={selectedUserId}
+            onChange={(e) => update("userId", e.target.value || null)}
+            className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="">All Users</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
               </option>
             ))}
           </select>

@@ -3,6 +3,8 @@ import { pgTable, uuid, text, timestamp, integer, pgEnum, boolean, unique } from
 export const faxDirectionEnum = pgEnum("fax_direction", ["inbound", "outbound"])
 export const faxStatusEnum = pgEnum("fax_status", ["queued", "sending", "delivered", "failed", "received", "scheduled"])
 export const userRoleEnum = pgEnum("user_role", ["admin", "staff"])
+export const pageSizeEnum = pgEnum("page_size", ["letter", "legal", "a4"])
+export const resolutionEnum = pgEnum("fax_resolution", ["fine", "standard"])
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -16,6 +18,19 @@ export const users = pgTable("users", {
   googleRefreshToken: text("google_refresh_token"),
   googleTokenExpiry: timestamp("google_token_expiry"),
   googleDriveFolder: text("google_drive_folder"),
+  assignedNumberId: uuid("assigned_number_id"),
+  canViewInbound: boolean("can_view_inbound").default(true).notNull(),
+  canViewAllSent: boolean("can_view_all_sent").default(true).notNull(),
+  canDelete: boolean("can_delete").default(false).notNull(),
+  secureMode: boolean("secure_mode").default(false).notNull(),
+  require2FA: boolean("require_2fa").default(false).notNull(),
+  locked: boolean("locked").default(false).notNull(),
+  timezone: text("timezone").default("America/New_York").notNull(),
+  defaultPage: text("default_page").default("/sent").notNull(),
+  markAsRead: text("mark_as_read").default("any").notNull(),
+  downloadFormat: text("download_format").default("pdf").notNull(),
+  defaultPageSize: pageSizeEnum("default_page_size").default("letter").notNull(),
+  defaultResolution: resolutionEnum("default_resolution").default("fine").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -23,6 +38,8 @@ export const phoneNumbers = pgTable("phone_numbers", {
   id: uuid("id").primaryKey().defaultRandom(),
   number: text("number").notNull().unique(),
   label: text("label"),
+  deptName: text("dept_name"),
+  callerIdStatus: text("caller_id_status").default("pending").notNull(),
   telnyxNumberId: text("telnyx_number_id"),
   active: boolean("active").default(true).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
@@ -39,9 +56,6 @@ export const coverSheetTemplates = pgTable("cover_sheet_templates", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
-
-export const pageSizeEnum = pgEnum("page_size", ["letter", "legal", "a4"])
-export const resolutionEnum = pgEnum("fax_resolution", ["fine", "standard"])
 
 export const faxes = pgTable("faxes", {
   id: uuid("id").primaryKey().defaultRandom(),

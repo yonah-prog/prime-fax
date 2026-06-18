@@ -11,15 +11,21 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const body = await req.json()
-  const { label, isDefault } = body
+  const { label, isDefault, deptName, callerIdStatus } = body
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
   }
 
+  const set: Record<string, unknown> = {}
+  if (label !== undefined) set.label = label?.trim() || null
+  if (isDefault !== undefined) set.isDefault = !!isDefault
+  if (deptName !== undefined) set.deptName = deptName?.trim() || null
+  if (callerIdStatus !== undefined) set.callerIdStatus = callerIdStatus
+
   const [row] = await db
     .update(phoneNumbers)
-    .set({ label: label?.trim() || null, ...(isDefault !== undefined ? { isDefault: !!isDefault } : {}) })
+    .set(set)
     .where(eq(phoneNumbers.id, id))
     .returning()
 
