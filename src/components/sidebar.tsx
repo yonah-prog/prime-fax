@@ -122,14 +122,14 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 space-y-3">
         {sections.map((section) => {
           if (section.adminOnly && !isAdmin) return null
           return (
             <div key={section.title}>
               <button
                 onClick={() => toggle(section.title)}
-                className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold uppercase tracking-widest text-blue-200 hover:text-white transition-colors"
+                className="w-full flex items-center justify-between px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300 hover:text-white transition-colors"
               >
                 {section.title}
                 <svg
@@ -141,7 +141,7 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
               </button>
 
               {open[section.title] && (
-                <div className="mt-1 mb-2">
+                <div className="mt-1 mb-1">
                   {section.items.map(({ href, label, alert }) => {
                     const active = pathname === href || (href.includes("?") && pathname === href.split("?")[0])
                     const badge = label === "Received Faxes" && unreadCount > 0 ? unreadCount : null
@@ -150,7 +150,7 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
                         key={href + label}
                         href={href}
                         onClick={onClose}
-                        className={`flex items-center gap-2.5 px-4 py-1.5 text-sm transition-colors ${
+                        className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
                           alert
                             ? "text-orange-300 hover:bg-white/10 hover:text-orange-200"
                             : active
@@ -161,7 +161,7 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
                         <span className={`shrink-0 ${alert ? "opacity-90" : "opacity-70"}`}>
                           {icons[label]}
                         </span>
-                        <span className="flex-1">{label}</span>
+                        <span className="flex-1 leading-tight">{label}</span>
                         {alert && (
                           <span className="text-[10px] bg-orange-400/20 border border-orange-400/40 text-orange-300 px-1.5 py-0.5 rounded leading-none font-medium">
                             NEW
