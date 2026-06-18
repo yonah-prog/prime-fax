@@ -1,15 +1,14 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { groups } from "@/lib/db/schema"
+import { requireAdmin } from "@/lib/require-admin"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
 type Params = { params: Promise<{ id: string }> }
 
-// PATCH /api/admin/groups/[id] — rename / update description
 export async function PATCH(req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
   const { name, description } = await req.json()
@@ -27,10 +26,9 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-// DELETE /api/admin/groups/[id]
 export async function DELETE(_req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
   await db.delete(groups).where(eq(groups.id, id))

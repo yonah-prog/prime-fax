@@ -1,13 +1,12 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { groups, userGroups } from "@/lib/db/schema"
+import { requireAdmin } from "@/lib/require-admin"
 import { eq, asc, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
-// GET /api/admin/groups — list all groups with member count
 export async function GET() {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const rows = await db
     .select({
@@ -26,10 +25,9 @@ export async function GET() {
   return NextResponse.json(rows)
 }
 
-// POST /api/admin/groups — create group
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { name, description } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })

@@ -1,14 +1,14 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
 import { audit } from "@/lib/audit"
+import { requireAdmin } from "@/lib/require-admin"
 import { eq } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { NextResponse } from "next/server"
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error, session } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
   const body = await req.json()
@@ -19,14 +19,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
     const passwordHash = await bcrypt.hash(body.password, 12)
     await db.update(users).set({ passwordHash }).where(eq(users.id, id))
-    audit({ userId: session.user?.id, userEmail: session.user?.email, action: "password_reset", resourceType: "user", resourceId: id })
+    audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "password_reset", resourceType: "user", resourceId: id })
     return NextResponse.json({ ok: true })
   }
 
   if (body.role !== undefined) {
     const role = body.role === "admin" ? "admin" : "staff"
     await db.update(users).set({ role }).where(eq(users.id, id))
-    audit({ userId: session.user?.id, userEmail: session.user?.email, action: "role_changed", resourceType: "user", resourceId: id, meta: { role } })
+    audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "role_changed", resourceType: "user", resourceId: id, meta: { role } })
     return NextResponse.json({ ok: true })
   }
 
@@ -44,20 +44,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   await db.update(users).set(updates).where(eq(users.id, id))
-  audit({ userId: session.user?.id, userEmail: session.user?.email, action: "permissions_updated", resourceType: "user", resourceId: id, meta: updates })
+  audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "permissions_updated", resourceType: "user", resourceId: id, meta: updates })
   return NextResponse.json({ ok: true })
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error, session } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
-  if (id === session.user?.id) {
+  if (id === session!.user?.id) {
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 })
   }
 
   await db.delete(users).where(eq(users.id, id))
-  audit({ userId: session.user?.id, userEmail: session.user?.email, action: "user_deleted", resourceType: "user", resourceId: id })
+  audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "user_deleted", resourceType: "user", resourceId: id })
   return NextResponse.json({ ok: true })
 }

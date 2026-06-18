@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
-import { and, asc, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc, sql } from "drizzle-orm"
+import { and, asc, count, eq, gte, ilike, isNull, lte, ne, or, desc, sql } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"

@@ -286,10 +286,10 @@ export default function NumberManager() {
                           </div>
                         ) : (
                           <button
-                            onClick={() => { setEditingDeptId(n.id); setEditDept((n as unknown as { deptName?: string }).deptName ?? "") }}
+                            onClick={() => { setEditingDeptId(n.id); setEditDept(n.deptName ?? "") }}
                             className="text-gray-600 hover:text-gray-900 hover:underline"
                           >
-                            {(n as unknown as { deptName?: string }).deptName || <span className="text-gray-300 italic">Add dept</span>}
+                            {n.deptName || <span className="text-gray-300 italic">Add dept</span>}
                           </button>
                         )}
                       </td>
@@ -297,14 +297,14 @@ export default function NumberManager() {
                       <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
                           <select
-                            value={(n as unknown as { callerIdStatus?: string }).callerIdStatus ?? "pending"}
+                            value={n.callerIdStatus ?? "pending"}
                             onChange={(e) => saveCallerIdStatus(n.id, e.target.value)}
                             disabled={updatingCallerId === n.id}
                             className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                             style={{
-                              color: (n as unknown as { callerIdStatus?: string }).callerIdStatus === "verified"
+                              color: n.callerIdStatus === "verified"
                                 ? "#16a34a"
-                                : (n as unknown as { callerIdStatus?: string }).callerIdStatus === "failed"
+                                : n.callerIdStatus === "failed"
                                 ? "#dc2626"
                                 : "#ca8a04",
                             }}

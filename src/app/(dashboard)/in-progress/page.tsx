@@ -47,6 +47,8 @@ export default async function InProgressPage({
   const sc = sendingCount[0]?.value ?? 0
   const rows = activeTab === "inbound" ? inboundRows : sendingRows
 
+  const phoneLabels = Object.fromEntries(numbers.map((n) => [n.number, n.label ?? ""]))
+
   return (
     <div>
       <AutoRefresh intervalMs={15000} />
@@ -99,7 +101,8 @@ export default async function InProgressPage({
       <div className="bg-white rounded-xl border border-gray-200 px-4">
         <FaxTable
           faxes={rows}
-          direction={activeTab === "inbound" ? "inbound" : "in-progress"}
+          direction={activeTab === "inbound" ? "inbound" : "outbound"}
+          phoneLabels={phoneLabels}
           emptyMessage={activeTab === "inbound" ? "No inbound faxes in the last hour." : "No faxes currently sending."}
         />
       </div>

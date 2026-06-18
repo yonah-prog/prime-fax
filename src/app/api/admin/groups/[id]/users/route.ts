@@ -1,15 +1,14 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { users, userGroups } from "@/lib/db/schema"
+import { requireAdmin } from "@/lib/require-admin"
 import { eq, and, asc } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
 type Params = { params: Promise<{ id: string }> }
 
-// GET /api/admin/groups/[id]/users — all users with inGroup flag
 export async function GET(_req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id: groupId } = await params
 
@@ -26,10 +25,9 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json(allUsers.map((u) => ({ ...u, inGroup: memberIds.has(u.id) })))
 }
 
-// PUT /api/admin/groups/[id]/users — body: { userId, inGroup: boolean }
 export async function PUT(req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id: groupId } = await params
   const { userId, inGroup } = await req.json()

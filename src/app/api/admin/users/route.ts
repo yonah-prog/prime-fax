@@ -1,14 +1,14 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
 import { audit } from "@/lib/audit"
+import { requireAdmin } from "@/lib/require-admin"
 import { asc } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error, session } = await requireAdmin()
+  if (error) return error
 
   const rows = await db.query.users.findMany({
     orderBy: [asc(users.createdAt)],
@@ -18,8 +18,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error, session } = await requireAdmin()
+  if (error) return error
 
   const body = await req.json()
   const { name, email, password, role } = body
@@ -39,6 +39,6 @@ export async function POST(req: Request) {
 
   if (!row) return NextResponse.json({ error: "Email already exists" }, { status: 409 })
 
-  audit({ userId: session.user?.id, userEmail: session.user?.email, action: "user_created", resourceType: "user", resourceId: row.id, meta: { email: row.email, role: userRole } })
+  audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "user_created", resourceType: "user", resourceId: row.id, meta: { email: row.email, role: userRole } })
   return NextResponse.json(row, { status: 201 })
 }

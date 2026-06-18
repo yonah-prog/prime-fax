@@ -103,8 +103,6 @@ const SORT_OPTIONS = [
   { value: "to_number", label: "To Number" },
   { value: "subject", label: "Subject" },
   { value: "from_number", label: "From Number" },
-  { value: "sender_name", label: "Sender Name" },
-  { value: "sender_email", label: "Sender Email" },
 ]
 
 interface Props {
