@@ -1,6 +1,6 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
-import { and, asc, count, eq, gte, ilike, isNull, isNotNull, lte, ne, or, desc, sql } from "drizzle-orm"
+import { and, asc, count, eq, gte, ilike, isNull, lte, ne, or, desc, sql } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"
@@ -11,18 +11,33 @@ export const dynamic = "force-dynamic"
 
 const PER_PAGE = 50
 
+function buildOrder(sortBy: string) {
+  switch (sortBy) {
+    case "date_asc": return [asc(faxes.createdAt)]
+    case "status": return [asc(faxes.status), desc(faxes.createdAt)]
+    case "pages": return [desc(faxes.pages), desc(faxes.createdAt)]
+    case "to_number": return [asc(faxes.toNumber), desc(faxes.createdAt)]
+    case "from_number": return [asc(faxes.fromNumber), desc(faxes.createdAt)]
+    default: return [desc(faxes.createdAt)]
+  }
+}
+
 export default async function InboxPage({
   searchParams,
 }: {
   searchParams: Promise<{
     q?: string; from?: string; to?: string; page?: string
     hideFailed?: string; unread?: string; number?: string; userId?: string; imageView?: string
+    sortBy?: string; showDeleted?: string
   }>
 }) {
   const p = await searchParams
   const page = Math.max(1, parseInt(p.page ?? "1"))
+  const sortBy = p.sortBy ?? "date_desc"
+  const showDeleted = p.showDeleted === "1"
 
-  const base = [eq(faxes.direction, "inbound"), isNull(faxes.trashedAt)]
+  const base = [eq(faxes.direction, "inbound")]
+  if (!showDeleted) base.push(isNull(faxes.trashedAt))
   if (p.q) base.push(or(ilike(faxes.fromNumber, `%${p.q}%`), ilike(faxes.fromName, `%${p.q}%`))!)
   if (p.from) base.push(gte(faxes.createdAt, new Date(p.from)))
   if (p.to) { const d = new Date(p.to); d.setDate(d.getDate() + 1); base.push(lte(faxes.createdAt, d)) }
@@ -32,6 +47,7 @@ export default async function InboxPage({
   if (p.userId) base.push(eq(faxes.userId, p.userId))
 
   const where = and(...base)
+  const orderBy = buildOrder(sortBy)
 
   const [totalRes, failedRes, unreadRes, pagesRes, rows, numbers, allUsers] = await Promise.all([
     db.select({ value: count() }).from(faxes).where(where),
@@ -42,7 +58,7 @@ export default async function InboxPage({
       and(eq(faxes.direction, "inbound"), isNull(faxes.trashedAt), isNull(faxes.readAt))
     ),
     db.select({ value: sql<number>`COALESCE(SUM(${faxes.pages}), 0)::int` }).from(faxes).where(where),
-    db.query.faxes.findMany({ where, orderBy: [desc(faxes.createdAt)], limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
+    db.query.faxes.findMany({ where, orderBy, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
     db.query.phoneNumbers.findMany({ where: eq(phoneNumbers.active, true) }),
     db.query.users.findMany({ columns: { id: true, name: true }, orderBy: [asc(users.name)] }),
   ])
@@ -65,12 +81,19 @@ export default async function InboxPage({
           unreadCount={unreadRes[0]?.value ?? 0}
           total={total}
           totalFaxPages={totalFaxPages}
+          showDeletedToggle
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">
-        <FaxTable faxes={rows} direction="inbound" emptyMessage="No received faxes matching your filters." phoneLabels={phoneLabels} imageView={p.imageView === "1"} />
+        <FaxTable
+          faxes={rows}
+          direction="inbound"
+          emptyMessage="No received faxes matching your filters."
+          phoneLabels={phoneLabels}
+          imageView={p.imageView === "1"}
+        />
       </div>
       <Suspense><Pagination page={page} totalPages={totalPages} /></Suspense>
     </div>

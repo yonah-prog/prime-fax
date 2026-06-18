@@ -361,7 +361,11 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
                               : "border-gray-200 text-gray-600 hover:border-blue-300 hover:text-blue-600"
                           }`}
                         >
-                          {isSelected && count !== null ? `${count} numbers` : "Numbers"}
+                          {isSelected && count !== null
+                            ? count === numbers.length
+                              ? "All Numbers"
+                              : `+${count} Numbers`
+                            : "Manage Access"}
                         </button>
                       </td>
 

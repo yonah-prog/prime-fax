@@ -309,9 +309,9 @@ export default function NumberManager() {
                                 : "#ca8a04",
                             }}
                           >
-                            <option value="pending" style={{ color: "#ca8a04" }}>pending</option>
-                            <option value="verified" style={{ color: "#16a34a" }}>verified</option>
-                            <option value="failed" style={{ color: "#dc2626" }}>failed</option>
+                            <option value="pending" style={{ color: "#ca8a04" }}>Pending</option>
+                            <option value="verified" style={{ color: "#16a34a" }}>Approved &amp; Active</option>
+                            <option value="failed" style={{ color: "#dc2626" }}>Failed</option>
                           </select>
                           {updatingCallerId === n.id && (
                             <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">

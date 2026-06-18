@@ -95,12 +95,25 @@ function Btn({
   )
 }
 
+const SORT_OPTIONS = [
+  { value: "date_desc", label: "Fax Date (newest)" },
+  { value: "date_asc", label: "Fax Date (oldest)" },
+  { value: "status", label: "Status" },
+  { value: "pages", label: "Pages" },
+  { value: "to_number", label: "To Number" },
+  { value: "subject", label: "Subject" },
+  { value: "from_number", label: "From Number" },
+  { value: "sender_name", label: "Sender Name" },
+  { value: "sender_email", label: "Sender Email" },
+]
+
 interface Props {
   failedCount?: number
   unreadCount?: number
   total?: number
   totalFaxPages?: number
   isTrash?: boolean
+  showDeletedToggle?: boolean
   phoneNumbers?: { number: string; label: string | null }[]
   users?: { id: string; name: string }[]
 }
@@ -111,6 +124,7 @@ export default function FaxToolbar({
   total = 0,
   totalFaxPages = 0,
   isTrash = false,
+  showDeletedToggle = false,
   phoneNumbers = [],
   users = [],
 }: Props) {
@@ -125,6 +139,8 @@ export default function FaxToolbar({
   const selectedNumber = searchParams.get("number") ?? ""
   const selectedUserId = searchParams.get("userId") ?? ""
   const imageView = searchParams.get("imageView") === "1"
+  const sortBy = searchParams.get("sortBy") ?? "date_desc"
+  const showDeleted = searchParams.get("showDeleted") === "1"
 
   const update = useCallback(
     (key: string, value: string | null) => {
@@ -148,7 +164,8 @@ export default function FaxToolbar({
     searchParams.get("hideFailed") ||
     searchParams.get("unread") ||
     searchParams.get("number") ||
-    searchParams.get("userId")
+    searchParams.get("userId") ||
+    searchParams.get("showDeleted")
 
   return (
     <div className="mb-4 space-y-2">
@@ -226,6 +243,31 @@ export default function FaxToolbar({
             ))}
           </select>
         )}
+
+        {/* Sort by */}
+        <select
+          value={sortBy}
+          onChange={(e) => update("sortBy", e.target.value === "date_desc" ? null : e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        {/* Show Deleted toggle */}
+        {showDeletedToggle && (
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <div
+              onClick={() => toggle("showDeleted", "1")}
+              className={`relative w-9 h-5 rounded-full transition-colors ${showDeleted ? "bg-blue-600" : "bg-gray-200"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${showDeleted ? "translate-x-4" : ""}`} />
+            </div>
+            <span className="text-xs text-gray-500 font-medium">Show Deleted</span>
+          </label>
+        )}
+
         <span className="text-xs text-gray-400 ml-auto">
           {total.toLocaleString()} fax{total !== 1 ? "es" : ""}
           {totalFaxPages > 0 && ` · ${totalFaxPages.toLocaleString()} page${totalFaxPages !== 1 ? "s" : ""}`}

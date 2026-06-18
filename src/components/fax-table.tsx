@@ -34,14 +34,20 @@ function formatTime(d: Date | string) {
     .replace(" ", "")
 }
 
-function PhoneCell({ num }: { num: string | null }) {
+function PhoneCell({ num, label }: { num: string | null; label?: string | null }) {
   const parsed = formatPhone(num)
   if (!parsed) return <span className="text-gray-300">—</span>
-  if (!parsed.area) return <span className="font-mono text-sm">{parsed.rest}</span>
   return (
-    <span className="font-mono text-sm text-gray-900">
-      <span className="font-bold">{parsed.area}</span> {parsed.rest}
-    </span>
+    <div>
+      {parsed.area ? (
+        <span className="font-mono text-sm text-gray-900">
+          <span className="font-bold">{parsed.area}</span> {parsed.rest}
+        </span>
+      ) : (
+        <span className="font-mono text-sm">{parsed.rest}</span>
+      )}
+      {label && <div className="text-xs text-gray-400 mt-0.5">{label}</div>}
+    </div>
   )
 }
 
@@ -53,6 +59,7 @@ function StatusCell({ status, errorMessage }: { status: string; errorMessage?: s
     failed: "text-red-500",
     received: "text-green-700",
     scheduled: "text-amber-600",
+    cancelled: "text-red-400",
   }
   const labels: Record<string, string> = {
     queued: "Queued",
@@ -61,6 +68,7 @@ function StatusCell({ status, errorMessage }: { status: string; errorMessage?: s
     failed: "Failed",
     received: "Success",
     scheduled: "Scheduled",
+    cancelled: "Cancelled",
   }
   return (
     <div>
@@ -142,14 +150,23 @@ interface Props {
   direction: "inbound" | "outbound" | "trash" | "in-progress"
   emptyMessage: string
   phoneLabels?: Record<string, string>
+  senders?: Record<string, { name: string; email: string }>
   imageView?: boolean
 }
 
-export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels = {}, imageView = false }: Props) {
+export default function FaxTable({
+  faxes,
+  direction,
+  emptyMessage,
+  phoneLabels = {},
+  senders = {},
+  imageView = false,
+}: Props) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [busy, setBusy] = useState(false)
   const isTrash = direction === "trash"
+  const isOutbound = direction === "outbound"
 
   function toggleAll(checked: boolean) {
     setSelected(checked ? new Set(faxes.map((f) => f.id)) : new Set())
@@ -198,7 +215,6 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
   if (imageView) {
     return (
       <div>
-        {/* bulk selection bar — same as table mode */}
         {someSelected && (
           <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
             <span className="font-medium text-blue-700">{selected.size} selected</span>
@@ -227,7 +243,6 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                   isSelected ? "border-blue-400 ring-2 ring-blue-200" : "border-gray-200"
                 } ${isUnread ? "bg-blue-50/30" : "bg-white"}`}
               >
-                {/* Thumbnail area */}
                 <div className="aspect-[8.5/11] bg-gray-50 rounded-t-xl flex items-center justify-center border-b border-gray-100 overflow-hidden">
                   {fax.fileUrl ? (
                     <div className="flex flex-col items-center gap-2 text-gray-400">
@@ -242,8 +257,6 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                     </svg>
                   )}
                 </div>
-
-                {/* Card metadata */}
                 <div className="p-2.5">
                   <div className="flex items-center justify-between mb-1">
                     <StatusCell status={fax.status} />
@@ -254,8 +267,6 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                   </p>
                   <p className="text-[10px] text-gray-400 mt-0.5">{formatDay(fax.createdAt)}</p>
                 </div>
-
-                {/* Selection checkbox */}
                 <div className="absolute top-2 left-2" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
@@ -264,7 +275,6 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white/80"
                   />
                 </div>
-
                 {isUnread && (
                   <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-blue-500" />
                 )}
@@ -310,9 +320,20 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
               <th className="pb-3 pr-5">Date</th>
               <th className="pb-3 pr-5">Time</th>
               <th className="pb-3 pr-6">Status</th>
-              <th className="pb-3 pr-6">From</th>
-              <th className="pb-3 pr-6">Caller ID</th>
-              <th className="pb-3 pr-4">Destination</th>
+              {isOutbound ? (
+                <>
+                  <th className="pb-3 pr-6">Destination</th>
+                  <th className="pb-3 pr-6">From</th>
+                  <th className="pb-3 pr-6">Sender</th>
+                  <th className="pb-3 pr-4">Subject</th>
+                </>
+              ) : (
+                <>
+                  <th className="pb-3 pr-6">From</th>
+                  <th className="pb-3 pr-6">Caller ID</th>
+                  <th className="pb-3 pr-4">Destination</th>
+                </>
+              )}
               <th className="pb-3 text-right">Pages</th>
             </tr>
           </thead>
@@ -320,15 +341,13 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
             {faxes.map((fax) => {
               const isInbound = fax.direction === "inbound"
               const isUnread = isInbound && !fax.readAt
-              const callerId = isInbound ? fax.fromName : null
-              const toLabel = isInbound
-                ? (phoneLabels[fax.toNumber] ?? null)
-                : (fax.recipientName ?? null)
+              const isTrashed = !!fax.trashedAt
+              const sender = fax.userId ? senders[fax.userId] : null
 
               return (
                 <tr
                   key={fax.id}
-                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${isUnread ? "bg-blue-50/40" : ""}`}
+                  className={`hover:bg-gray-50 cursor-pointer transition-colors ${isUnread ? "bg-blue-50/40" : ""} ${isTrashed ? "opacity-60" : ""}`}
                   onClick={() => router.push(`/faxes/${fax.id}`)}
                 >
                   <td className="py-3 pr-2" onClick={(e) => e.stopPropagation()}>
@@ -350,6 +369,7 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                     <span className={`text-sm ${isUnread ? "font-semibold text-gray-900" : "text-gray-700"}`}>
                       {formatDay(fax.createdAt)}
                     </span>
+                    {isTrashed && <div className="text-[10px] text-red-400 mt-0.5">Deleted</div>}
                   </td>
                   <td className="py-3 pr-5 whitespace-nowrap text-gray-500 text-sm">
                     {formatTime(fax.createdAt)}
@@ -362,16 +382,51 @@ export default function FaxTable({ faxes, direction, emptyMessage, phoneLabels =
                       </div>
                     )}
                   </td>
-                  <td className="py-3 pr-6 whitespace-nowrap">
-                    <PhoneCell num={fax.fromNumber} />
-                  </td>
-                  <td className="py-3 pr-6 text-gray-500 text-sm max-w-[140px] truncate">
-                    {callerId ?? <span className="text-gray-300">—</span>}
-                  </td>
-                  <td className="py-3 pr-4 whitespace-nowrap">
-                    <PhoneCell num={fax.toNumber} />
-                    {toLabel && <div className="text-xs text-gray-400 mt-0.5">{toLabel}</div>}
-                  </td>
+
+                  {isOutbound ? (
+                    <>
+                      {/* Destination */}
+                      <td className="py-3 pr-6 whitespace-nowrap">
+                        <PhoneCell num={fax.toNumber} />
+                        {fax.recipientName && <div className="text-xs text-gray-400 mt-0.5">{fax.recipientName}</div>}
+                      </td>
+                      {/* From (outgoing number + dept label) */}
+                      <td className="py-3 pr-6 whitespace-nowrap">
+                        <PhoneCell num={fax.fromNumber} label={phoneLabels[fax.fromNumber] ?? null} />
+                      </td>
+                      {/* Sender (user name + email) */}
+                      <td className="py-3 pr-6">
+                        {sender ? (
+                          <div>
+                            <p className="text-sm text-gray-900 font-medium">{sender.name}</p>
+                            <p className="text-xs text-gray-400">{sender.email}</p>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </td>
+                      {/* Subject */}
+                      <td className="py-3 pr-4 text-gray-600 text-sm max-w-[160px] truncate">
+                        {fax.subject || <span className="text-gray-300">—</span>}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      {/* From */}
+                      <td className="py-3 pr-6 whitespace-nowrap">
+                        <PhoneCell num={fax.fromNumber} />
+                      </td>
+                      {/* Caller ID */}
+                      <td className="py-3 pr-6 text-gray-500 text-sm max-w-[140px] truncate">
+                        {fax.fromName ?? <span className="text-gray-300">—</span>}
+                      </td>
+                      {/* Destination */}
+                      <td className="py-3 pr-4 whitespace-nowrap">
+                        <PhoneCell num={fax.toNumber} label={phoneLabels[fax.toNumber] ?? null} />
+                      </td>
+                    </>
+                  )}
+
                   <td className="py-3 text-right text-gray-700 font-medium">
                     {fax.pages ?? <span className="text-gray-300">—</span>}
                   </td>
