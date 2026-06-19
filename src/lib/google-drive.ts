@@ -52,7 +52,8 @@ export async function uploadToDriveForUser(
   userId: string,
   buf: Buffer,
   fileName: string,
-  mimeType = "application/pdf"
+  mimeType = "application/pdf",
+  folderOverride?: string | null
 ): Promise<void> {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
   if (!user?.googleRefreshToken) return
@@ -74,7 +75,8 @@ export async function uploadToDriveForUser(
   })
 
   const drive = google.drive({ version: "v3", auth: client })
-  const folderName = user.googleDriveFolder?.trim() || "CareTend Fax"
+  // Per-number folder override takes precedence over the user's default folder.
+  const folderName = folderOverride?.trim() || user.googleDriveFolder?.trim() || "CareTend Fax"
   const folderId = await getOrCreateFolder(drive, folderName)
 
   await drive.files.create({

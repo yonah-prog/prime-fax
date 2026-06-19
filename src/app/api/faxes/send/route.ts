@@ -1,6 +1,6 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
-import { faxes, coverSheetTemplates } from "@/lib/db/schema"
+import { faxes, coverSheetTemplates, phoneNumbers } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { generateCoverSheet, prependCoverSheet } from "@/lib/cover-sheet"
@@ -125,10 +125,16 @@ export async function POST(req: Request) {
   const key = `outbound/${randomUUID()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`
   const fileUrl = await uploadToR2(fileBuffer, key, contentType)
 
-  // Upload to Google Drive for the sending user (fire-and-forget)
+  // Upload to Google Drive for the sending user (fire-and-forget). Use the
+  // sending number's configured Drive folder if one is set, else the user's.
   if (session.user?.id) {
+    const fromRecord = await db.query.phoneNumbers.findFirst({
+      where: eq(phoneNumbers.number, fromNumber),
+      columns: { googleDriveFolder: true },
+    })
     const driveFileName = `Sent-${fileName}-${new Date().toISOString().slice(0, 10)}.pdf`
-    uploadToDriveForUser(session.user.id, fileBuffer, driveFileName, contentType).catch(() => {})
+    uploadToDriveForUser(session.user.id, fileBuffer, driveFileName, contentType, fromRecord?.googleDriveFolder)
+      .catch((e) => console.error("Drive upload (outbound) failed:", e))
   }
 
   // Broadcast ID links all recipients in a single broadcast together

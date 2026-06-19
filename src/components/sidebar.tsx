@@ -104,17 +104,11 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
   return (
     <>
       {/* Logo */}
-      <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-yellow-400 rounded flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-blue-900" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-            </svg>
-          </div>
-          <span className="text-white font-semibold text-base">CareTend Fax</span>
-        </div>
+      <div className="px-4 py-3.5 bg-white border-b border-gray-200 flex items-center justify-between">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/premier-health-logo.svg" alt="Premier Health" className="h-7 w-auto" />
         {onClose && (
-          <button onClick={onClose} className="text-blue-200 hover:text-white lg:hidden">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden shrink-0 ml-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
           const contentType = res.headers.get("content-type") ?? "application/pdf"
           fileUrl = await uploadToR2(buffer, `inbound/${randomUUID()}.pdf`, contentType)
           const driveFileName = `Inbound-${fromNumber}-${new Date().toISOString().slice(0, 10)}.pdf`
-          uploadToDriveForAll(buffer, driveFileName, contentType).catch(() => {})
+          uploadToDriveForAll(buffer, driveFileName, contentType).catch((e) => console.error("Drive upload (inbound) failed:", e))
         }
       } catch {
         // Keep Telnyx URL as fallback

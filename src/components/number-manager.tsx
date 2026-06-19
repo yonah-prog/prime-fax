@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import type { AvailableNumber } from "@/lib/telnyx"
 
 type Tab = "add-existing" | "provision"
-type DetailTab = "users" | "coversheet"
+type DetailTab = "users" | "coversheet" | "settings"
 
 interface NumberWithCounts {
   id: string
@@ -16,6 +16,7 @@ interface NumberWithCounts {
   active: boolean
   isDefault: boolean
   coverSheetTemplateId?: string | null
+  googleDriveFolder?: string | null
   createdAt: Date
   numUsersAssigned: number
   numUsersCanAccess: number
@@ -79,6 +80,10 @@ export default function NumberManager() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [savingTemplate, setSavingTemplate] = useState(false)
 
+  // Per-number Google Drive folder
+  const [driveFolder, setDriveFolder] = useState<string>("")
+  const [savingDriveFolder, setSavingDriveFolder] = useState(false)
+
   const [error, setError] = useState("")
 
   async function load() {
@@ -99,6 +104,7 @@ export default function NumberManager() {
   async function loadUsers(number: NumberWithCounts) {
     setSelectedNumber(number)
     setSelectedTemplateId(number.coverSheetTemplateId ?? "")
+    setDriveFolder(number.googleDriveFolder ?? "")
     setDetailTab("users")
     setShowPanel(false)
     setUsersLoading(true)
@@ -118,6 +124,20 @@ export default function NumberManager() {
     await load()
     if (selectedNumber) {
       setSelectedNumber((prev) => prev ? { ...prev, coverSheetTemplateId: selectedTemplateId || null } : prev)
+    }
+  }
+
+  async function saveDriveFolder(numberId: string) {
+    setSavingDriveFolder(true)
+    await fetch(`/api/numbers/${numberId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ googleDriveFolder: driveFolder.trim() || null }),
+    })
+    setSavingDriveFolder(false)
+    await load()
+    if (selectedNumber) {
+      setSelectedNumber((prev) => prev ? { ...prev, googleDriveFolder: driveFolder.trim() || null } : prev)
     }
   }
 
@@ -515,6 +535,15 @@ export default function NumberManager() {
                       <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
                     )}
                   </button>
+                  <button
+                    className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${detailTab === "settings" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                    onClick={() => setDetailTab("settings")}
+                  >
+                    Settings
+                    {selectedNumber.googleDriveFolder && (
+                      <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
+                    )}
+                  </button>
                 </div>
 
                 {/* User Access tab */}
@@ -601,6 +630,33 @@ export default function NumberManager() {
                         </button>
                       </>
                     )}
+                  </div>
+                )}
+
+                {/* Settings tab */}
+                {detailTab === "settings" && (
+                  <div className="p-4 space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Google Drive Folder (outbound)</label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Faxes sent from this number are saved to this Google Drive folder (created if it doesn&apos;t
+                        exist). Leave blank to use the sending user&apos;s default folder.
+                      </p>
+                      <input
+                        type="text"
+                        value={driveFolder}
+                        onChange={(e) => setDriveFolder(e.target.value)}
+                        placeholder="e.g. Faxes / Main Office"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button
+                      onClick={() => saveDriveFolder(selectedNumber.id)}
+                      disabled={savingDriveFolder}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                    >
+                      {savingDriveFolder ? "Saving…" : "Save Settings"}
+                    </button>
                   </div>
                 )}
               </>

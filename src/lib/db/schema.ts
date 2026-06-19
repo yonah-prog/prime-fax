@@ -57,6 +57,7 @@ export const phoneNumbers = pgTable("phone_numbers", {
   active: boolean("active").default(true).notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   coverSheetTemplateId: uuid("cover_sheet_template_id").references(() => coverSheetTemplates.id, { onDelete: "set null" }),
+  googleDriveFolder: text("google_drive_folder"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
