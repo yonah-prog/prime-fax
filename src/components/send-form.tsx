@@ -387,7 +387,7 @@ export default function SendForm() {
           {/* Cover Sheet toggle + template picker */}
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-700">Cover Sheet</span>
+              <span className="text-sm font-semibold text-gray-700">Cover Sheet</span>
               <button
                 type="button"
                 onClick={() => set("hasCoverSheet", !form.hasCoverSheet)}
@@ -397,32 +397,36 @@ export default function SendForm() {
                   className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${form.hasCoverSheet ? "translate-x-4" : "translate-x-0.5"}`}
                 />
               </button>
-              {form.hasCoverSheet && templates.length === 0 && (
-                <span className="text-xs text-gray-500">
-                  Edit fields in{" "}
-                  <button type="button" onClick={() => setActiveTab("advanced")} className="text-blue-600 hover:underline">
-                    Advanced
-                  </button>
-                </span>
-              )}
             </div>
-            {form.hasCoverSheet && templates.length > 0 && (
-              <div className="flex items-center gap-2">
-                <select
-                  value={form.coverSheetTemplateId}
-                  onChange={(e) => applyTemplate(e.target.value)}
-                  className="flex-1 px-3 py-1.5 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">— Choose template —</option>
-                  {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}{t.isDefault ? " (default)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <button type="button" onClick={() => setActiveTab("advanced")} className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap">
-                  Edit fields
-                </button>
+
+            {form.hasCoverSheet && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Cover Page Template</label>
+                {templates.length > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={form.coverSheetTemplateId}
+                      onChange={(e) => applyTemplate(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Default cover sheet (no template)</option>
+                      {templates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}{t.isDefault ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" onClick={() => setActiveTab("advanced")} className="text-xs text-gray-400 hover:text-gray-600 whitespace-nowrap">
+                      Edit fields
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 border border-dashed border-gray-300 rounded px-3 py-2">
+                    No templates yet — a default cover sheet will be used. Create one under{" "}
+                    <a href="/templates" className="text-blue-600 hover:underline">Cover Sheets</a>, or{" "}
+                    <button type="button" onClick={() => setActiveTab("advanced")} className="text-blue-600 hover:underline">edit the fields</button>.
+                  </p>
+                )}
               </div>
             )}
           </div>
