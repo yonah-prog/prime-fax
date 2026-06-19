@@ -60,7 +60,7 @@ export default async function InboxPage({
     db.select({ value: sql<number>`COALESCE(SUM(${faxes.pages}), 0)::int` }).from(faxes).where(where),
     db.query.faxes.findMany({ where, orderBy, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
     db.query.phoneNumbers.findMany({ where: eq(phoneNumbers.active, true) }),
-    db.query.users.findMany({ columns: { id: true, name: true }, orderBy: [asc(users.name)] }),
+    db.query.users.findMany({ columns: { id: true, name: true, email: true }, orderBy: [asc(users.name)] }),
   ])
 
   const total = totalRes[0]?.value ?? 0

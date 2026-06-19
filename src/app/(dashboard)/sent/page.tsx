@@ -91,7 +91,7 @@ export default async function SentPage({
           totalFaxPages={totalFaxPages}
           showDeletedToggle
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
-          users={allUsers.map((u) => ({ id: u.id, name: u.name }))}
+          users={allUsers.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

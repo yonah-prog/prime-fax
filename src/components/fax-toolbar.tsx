@@ -113,7 +113,7 @@ interface Props {
   isTrash?: boolean
   showDeletedToggle?: boolean
   phoneNumbers?: { number: string; label: string | null }[]
-  users?: { id: string; name: string }[]
+  users?: { id: string; name: string; email?: string }[]
 }
 
 export default function FaxToolbar({
@@ -236,7 +236,7 @@ export default function FaxToolbar({
             <option value="">All Users</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.name}
+                {(u.name || "Unnamed") + (u.email ? ` — ${u.email}` : "")}
               </option>
             ))}
           </select>
