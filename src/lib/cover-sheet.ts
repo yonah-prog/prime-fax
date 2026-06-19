@@ -105,7 +105,7 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
 }
 
 export async function prependCoverSheet(coverBytes: Uint8Array, docBytes: Uint8Array): Promise<Uint8Array> {
-  const cover = await PDFDocument.load(coverBytes)
+  const cover = await PDFDocument.load(coverBytes, { ignoreEncryption: true })
   const doc = await PDFDocument.load(docBytes, { ignoreEncryption: true })
   const merged = await PDFDocument.create()
 

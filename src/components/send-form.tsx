@@ -114,6 +114,18 @@ export default function SendForm() {
     }))
   }
 
+  // When the From Number changes, auto-select the cover sheet template
+  // associated with that number (if any and it still exists).
+  useEffect(() => {
+    if (!form.fromNumberId || templates.length === 0) return
+    const num = numbers.find((n) => n.id === form.fromNumberId)
+    const tplId = num?.coverSheetTemplateId
+    if (tplId && tplId !== form.coverSheetTemplateId && templates.some((t) => t.id === tplId)) {
+      applyTemplate(tplId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.fromNumberId, templates, numbers])
+
   const onDrop = useCallback((accepted: File[]) => { if (accepted[0]) setFile(accepted[0]) }, [])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

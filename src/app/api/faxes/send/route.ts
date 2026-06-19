@@ -4,6 +4,7 @@ import { faxes, coverSheetTemplates } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { generateCoverSheet, prependCoverSheet } from "@/lib/cover-sheet"
+import { renderTrdxToPdf } from "@/lib/trdx"
 import { audit } from "@/lib/audit"
 import { uploadToDriveForUser } from "@/lib/google-drive"
 import { eq } from "drizzle-orm"
@@ -41,14 +42,15 @@ export async function POST(req: Request) {
   const scheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null
 
   // If a template ID was supplied, load it and use its fields as overrides
+  let coverTemplate: typeof coverSheetTemplates.$inferSelect | null = null
   if (coverSheetTemplateId) {
-    const tpl = await db.query.coverSheetTemplates.findFirst({
+    coverTemplate = (await db.query.coverSheetTemplates.findFirst({
       where: eq(coverSheetTemplates.id, coverSheetTemplateId),
-    })
-    if (tpl) {
-      if (tpl.fromName) resolvedFromName = tpl.fromName
-      if (tpl.coverSheetMessage) coverSheetMessage = tpl.coverSheetMessage
-      if (tpl.contactInfo) contactInfo = tpl.contactInfo
+    })) ?? null
+    if (coverTemplate) {
+      if (coverTemplate.fromName) resolvedFromName = coverTemplate.fromName
+      if (coverTemplate.coverSheetMessage) coverSheetMessage = coverTemplate.coverSheetMessage
+      if (coverTemplate.contactInfo) contactInfo = coverTemplate.contactInfo
     }
   }
 
@@ -64,16 +66,52 @@ export async function POST(req: Request) {
 
   // Build PDF (cover + doc) once — reused for all recipients in broadcast
   if (hasCoverSheet) {
-    const coverBytes = await generateCoverSheet({
-      fromName: resolvedFromName,
-      fromNumber,
-      recipientName,
-      toNumber: recipients[0],
-      subject,
-      message: coverSheetMessage,
-      contactInfo,
-      date: new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
-    })
+    const coverDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+
+    // Prefer a custom design file uploaded with the template: a PDF is used
+    // as-is; a TRDX is rendered to PDF in-process. Fall back to the generated
+    // cover sheet if there's no file, or rendering/fetching fails.
+    let coverBytes: Uint8Array | null = null
+    if (coverTemplate?.fileUrl) {
+      try {
+        const res = await fetch(coverTemplate.fileUrl)
+        if (res.ok) {
+          const designBytes = new Uint8Array(await res.arrayBuffer())
+          const ext = (coverTemplate.fileName ?? "").split(".").pop()?.toLowerCase()
+          const isPdf = ext === "pdf" || (res.headers.get("content-type") ?? "").includes("pdf")
+          if (isPdf) {
+            coverBytes = designBytes
+          } else if (ext === "trdx" || ext === "xml") {
+            coverBytes = await renderTrdxToPdf(Buffer.from(designBytes).toString("utf-8"), {
+              recipientName, recipient: recipientName, toName: recipientName,
+              toNumber: recipients[0], toFax: recipients[0], faxNumber: recipients[0],
+              fromName: resolvedFromName, from: resolvedFromName, sender: resolvedFromName,
+              fromNumber, fromFax: fromNumber,
+              subject,
+              message: coverSheetMessage, coverSheetMessage, body: coverSheetMessage,
+              contactInfo, contact: contactInfo,
+              date: coverDate,
+            })
+          }
+        }
+      } catch {
+        coverBytes = null // fall back below
+      }
+    }
+
+    if (!coverBytes) {
+      coverBytes = await generateCoverSheet({
+        fromName: resolvedFromName,
+        fromNumber,
+        recipientName,
+        toNumber: recipients[0],
+        subject,
+        message: coverSheetMessage,
+        contactInfo,
+        date: coverDate,
+      })
+    }
+
     fileBytes = fileBytes ? await prependCoverSheet(coverBytes, fileBytes) : coverBytes
     if (!file) fileName = "cover-sheet.pdf"
     contentType = "application/pdf"
