@@ -11,6 +11,21 @@ export interface CoverSheetOptions {
   date: string
 }
 
+// StandardFonts.Helvetica is WinAnsi-encoded and throws on characters it can't
+// represent (emoji, CJK, smart quotes, etc.). Normalize common typographic
+// characters and strip anything still outside the printable Latin-1 range so a
+// stray character in a name/subject/message never 500s a fax send.
+function toWinAnsi(text: string): string {
+  return (text ?? "")
+    .replace(/[‘’‚‛]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[–—]/g, "-")
+    .replace(/…/g, "...")
+    .replace(/ /g, " ")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, "")
+}
+
 export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8Array> {
   const doc = await PDFDocument.create()
   const page = doc.addPage([612, 792]) // Letter
@@ -22,7 +37,7 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
   let y = height - margin
 
   const line = (text: string, size = 11, isBold = false, color = rgb(0, 0, 0)) => {
-    page.drawText(text, { x: margin, y, font: isBold ? bold : font, size, color })
+    page.drawText(toWinAnsi(text), { x: margin, y, font: isBold ? bold : font, size, color })
     y -= size + 4
   }
 
@@ -66,7 +81,7 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
     gap(12)
     line("MESSAGE", 9, false, rgb(0.4, 0.4, 0.4))
     gap(6)
-    const words = opts.message.split(" ")
+    const words = toWinAnsi(opts.message).split(" ")
     let currentLine = ""
     for (const word of words) {
       const test = currentLine ? `${currentLine} ${word}` : word
@@ -91,7 +106,7 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
 
 export async function prependCoverSheet(coverBytes: Uint8Array, docBytes: Uint8Array): Promise<Uint8Array> {
   const cover = await PDFDocument.load(coverBytes)
-  const doc = await PDFDocument.load(docBytes)
+  const doc = await PDFDocument.load(docBytes, { ignoreEncryption: true })
   const merged = await PDFDocument.create()
 
   const coverPages = await merged.copyPages(cover, cover.getPageIndices())

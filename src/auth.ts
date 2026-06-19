@@ -18,11 +18,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
+        const email = (credentials.email as string).trim().toLowerCase()
         const user = await db.query.users.findFirst({
-          where: eq(users.email, credentials.email as string),
+          where: eq(users.email, email),
         })
 
         if (!user) return null
+        if (user.locked) return null
 
         const valid = await bcrypt.compare(
           credentials.password as string,

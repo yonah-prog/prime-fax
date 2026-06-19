@@ -35,8 +35,7 @@ const sections: Section[] = [
     title: "Account",
     items: [
       { href: "/contacts", label: "Address Book" },
-      { href: "/settings?tab=password", label: "Change Password" },
-      { href: "/settings?tab=api", label: "API / Developer" },
+      { href: "/settings?tab=email", label: "Change Password" },
       { href: "/settings", label: "Settings" },
     ],
   },
@@ -143,7 +142,7 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
               {open[section.title] && (
                 <div className="mt-1 mb-1">
                   {section.items.map(({ href, label, alert }) => {
-                    const active = pathname === href || (href.includes("?") && pathname === href.split("?")[0])
+                    const active = pathname === href.split("?")[0] && !href.includes("?")
                     const badge = label === "Received Faxes" && unreadCount > 0 ? unreadCount : null
                     return (
                       <Link

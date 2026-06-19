@@ -64,11 +64,13 @@ export async function uploadToDriveForUser(
     expiry_date: user.googleTokenExpiry?.getTime(),
   })
 
-  client.on("tokens", async (tokens) => {
-    await db.update(users).set({
+  client.on("tokens", (tokens) => {
+    // Fire-and-forget; the emitter does not await this, so swallow errors to
+    // avoid an unhandled promise rejection taking down the process.
+    db.update(users).set({
       googleAccessToken: tokens.access_token ?? user.googleAccessToken,
       googleTokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : user.googleTokenExpiry,
-    }).where(eq(users.id, userId))
+    }).where(eq(users.id, userId)).catch(() => {})
   })
 
   const drive = google.drive({ version: "v3", auth: client })

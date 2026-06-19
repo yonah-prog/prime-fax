@@ -8,7 +8,12 @@ import { NextResponse } from "next/server"
 export async function POST(req: Request) {
   const authHeader = req.headers.get("authorization")
   const expectedToken = process.env.CRON_SECRET
-  if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+  // Fail closed: if no secret is configured, refuse rather than expose the
+  // endpoint publicly (it triggers real fax sends).
+  if (!expectedToken) {
+    return NextResponse.json({ error: "Cron not configured" }, { status: 503 })
+  }
+  if (authHeader !== `Bearer ${expectedToken}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 

@@ -1,15 +1,15 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { users, userPhoneNumbers } from "@/lib/db/schema"
 import { eq, and, asc } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/require-admin"
 
 type Params = { params: Promise<{ id: string }> }
 
 // GET /api/numbers/[id]/users — all users with hasAccess flag
 export async function GET(_req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id: phoneNumberId } = await params
 
@@ -30,8 +30,8 @@ export async function GET(_req: Request, { params }: Params) {
 
 // PUT /api/numbers/[id]/users — body: { userId, access: boolean }
 export async function PUT(req: Request, { params }: Params) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id: phoneNumberId } = await params
   const { userId, access } = await req.json()

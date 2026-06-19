@@ -15,6 +15,13 @@
       "when": 1781800343816,
       "tag": "0001_stale_moira_mactaggert",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781869554855,
+      "tag": "0002_cover_sheet_files",
+      "breakpoints": true
     }
   ]
 }

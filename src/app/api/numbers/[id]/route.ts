@@ -1,13 +1,13 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { phoneNumbers } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { releaseNumber } from "@/lib/telnyx"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/require-admin"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
   const body = await req.json()
@@ -35,8 +35,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { id } = await params
   const { searchParams } = new URL(req.url)

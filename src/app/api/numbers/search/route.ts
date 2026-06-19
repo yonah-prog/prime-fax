@@ -1,10 +1,10 @@
-import { auth } from "@/auth"
 import { searchAvailableNumbers } from "@/lib/telnyx"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/require-admin"
 
 export async function GET(req: Request) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const { searchParams } = new URL(req.url)
   const areaCode = searchParams.get("areaCode")?.replace(/\D/g, "") ?? ""

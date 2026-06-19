@@ -1,12 +1,12 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { phoneNumbers } from "@/lib/db/schema"
 import { provisionNumber } from "@/lib/telnyx"
 import { NextResponse } from "next/server"
+import { requireAdmin } from "@/lib/require-admin"
 
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const { error } = await requireAdmin()
+  if (error) return error
 
   const body = await req.json()
   const { phoneNumber, label } = body

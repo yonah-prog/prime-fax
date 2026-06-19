@@ -23,18 +23,20 @@ export async function POST(req: Request) {
   const { event_type, payload } = body?.data ?? {}
   if (!event_type || !payload) return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
 
-  if (event_type === "fax.delivered") {
+  const faxId = typeof payload.fax_id === "string" ? payload.fax_id : null
+
+  if (event_type === "fax.delivered" && faxId) {
     await db
       .update(faxes)
       .set({ status: "delivered", pages: (payload.page_count as number) ?? null, updatedAt: new Date() })
-      .where(eq(faxes.telnyxFaxId, payload.fax_id as string))
+      .where(eq(faxes.telnyxFaxId, faxId))
   }
 
-  if (event_type === "fax.send.failed" || event_type === "fax.failed") {
+  if ((event_type === "fax.send.failed" || event_type === "fax.failed") && faxId) {
     await db
       .update(faxes)
       .set({ status: "failed", errorMessage: (payload.failure_reason as string) ?? "Unknown error", updatedAt: new Date() })
-      .where(eq(faxes.telnyxFaxId, payload.fax_id as string))
+      .where(eq(faxes.telnyxFaxId, faxId))
   }
 
   if (event_type === "fax.received") {
@@ -74,10 +76,10 @@ export async function POST(req: Request) {
       status: "received",
       fromNumber,
       toNumber,
-      telnyxFaxId: payload.fax_id as string,
+      telnyxFaxId: faxId,
       fileUrl,
       pages: pageCount,
-    })
+    }).onConflictDoNothing({ target: faxes.telnyxFaxId })
 
     // Email notification (fire-and-forget)
     notifyFaxReceived({ fromNumber, toNumber, pages: pageCount, fileUrl: fileUrl ?? null }).catch(() => {})

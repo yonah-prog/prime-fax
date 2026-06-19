@@ -4,6 +4,7 @@ const styles: Record<string, string> = {
   delivered: "bg-green-100 text-green-700",
   failed:    "bg-red-100 text-red-700",
   received:  "bg-purple-100 text-purple-700",
+  scheduled: "bg-amber-100 text-amber-700",
 }
 
 export default function StatusBadge({ status }: { status: string }) {

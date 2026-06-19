@@ -568,6 +568,12 @@ function PasswordForm() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("general")
 
+  // Honor deep links from the sidebar (e.g. /settings?tab=email).
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab")
+    if (tab === "general" || tab === "email" || tab === "coversheet") setActiveTab(tab)
+  }, [])
+
   return (
     <div>
       <div className="flex items-baseline gap-3 mb-6">
