@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Report Width="7.5in" Name="CoverSheet" xmlns="http://schemas.telerik.com/reporting/2021/1.0">
+  <Items>
+    <PageHeaderSection Height="0.7in" Name="pageHeaderSection">
+      <Items>
+        <TextBox Value="FAX COVER SHEET" Left="0in" Top="0in" Width="7.5in" Height="0.5in" Name="title" TextAlign="Center" BackgroundColor="#1A4F99">
+          <Style>
+            <Font Name="Arial" Size="20pt" Bold="true"/>
+            <Color>#FFFFFF</Color>
+          </Style>
+        </TextBox>
+      </Items>
+    </PageHeaderSection>
+    <DetailSection Height="6in" Name="detailSection">
+      <Items>
+        <TextBox Value='= "Date: " + Parameters.date.Value' Left="0in" Top="0.2in" Width="7.5in" Height="0.3in" Name="date">
+          <Style><Font Name="Arial" Size="11pt" Bold="true"/></Style>
+        </TextBox>
+
+        <TextBox Value="TO" Left="0in" Top="0.7in" Width="3in" Height="0.2in" Name="toLabel">
+          <Style><Font Name="Arial" Size="9pt"/><Color>#666666</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.recipientName.Value" Left="0in" Top="0.92in" Width="5in" Height="0.3in" Name="recipientName">
+          <Style><Font Name="Arial" Size="14pt" Bold="true"/></Style>
+        </TextBox>
+        <TextBox Value='= "Fax: " + Parameters.toNumber.Value' Left="0in" Top="1.25in" Width="5in" Height="0.25in" Name="toNumber">
+          <Style><Font Name="Arial" Size="11pt"/></Style>
+        </TextBox>
+
+        <TextBox Value="FROM" Left="0in" Top="1.8in" Width="3in" Height="0.2in" Name="fromLabel">
+          <Style><Font Name="Arial" Size="9pt"/><Color>#666666</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.fromName.Value" Left="0in" Top="2.02in" Width="5in" Height="0.3in" Name="fromName">
+          <Style><Font Name="Arial" Size="14pt" Bold="true"/></Style>
+        </TextBox>
+        <TextBox Value='= "Fax: " + Parameters.fromNumber.Value' Left="0in" Top="2.35in" Width="5in" Height="0.25in" Name="fromNumber">
+          <Style><Font Name="Arial" Size="11pt"/></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.contactInfo.Value" Left="0in" Top="2.6in" Width="7.5in" Height="0.8in" Name="contactInfo">
+          <Style><Font Name="Arial" Size="10pt"/><Color>#444444</Color></Style>
+        </TextBox>
+
+        <TextBox Value="SUBJECT" Left="0in" Top="3.5in" Width="3in" Height="0.2in" Name="subjectLabel">
+          <Style><Font Name="Arial" Size="9pt"/><Color>#666666</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.subject.Value" Left="0in" Top="3.72in" Width="7.5in" Height="0.3in" Name="subject">
+          <Style><Font Name="Arial" Size="12pt" Bold="true"/></Style>
+        </TextBox>
+
+        <Line Left="0in" Top="4.2in" Width="7.5in" Height="0in" Name="rule">
+          <Style><Color>#CCCCCC</Color></Style>
+        </Line>
+
+        <TextBox Value="MESSAGE" Left="0in" Top="4.35in" Width="3in" Height="0.2in" Name="messageLabel">
+          <Style><Font Name="Arial" Size="9pt"/><Color>#666666</Color></Style>
+        </TextBox>
+        <HtmlTextBox Value="=Parameters.message.Value" Left="0in" Top="4.6in" Width="7.5in" Height="1.3in" Name="message">
+          <Style><Font Name="Arial" Size="10pt"/></Style>
+        </HtmlTextBox>
+      </Items>
+    </DetailSection>
+    <PageFooterSection Height="0.4in" Name="pageFooterSection">
+      <Items>
+        <TextBox Value="CONFIDENTIAL FAX TRANSMISSION" Left="0in" Top="0.1in" Width="7.5in" Height="0.2in" Name="footer" TextAlign="Center">
+          <Style><Font Name="Arial" Size="8pt"/><Color>#888888</Color></Style>
+        </TextBox>
+      </Items>
+    </PageFooterSection>
+  </Items>
+  <PageSettings>
+    <Margins Left="0.5in" Right="0.5in" Top="0.5in" Bottom="0.5in"/>
+    <PaperKind>Letter</PaperKind>
+  </PageSettings>
+  <ReportParameters>
+    <ReportParameter Name="recipientName" Type="String"/>
+    <ReportParameter Name="toNumber" Type="String"/>
+    <ReportParameter Name="fromName" Type="String"/>
+    <ReportParameter Name="fromNumber" Type="String"/>
+    <ReportParameter Name="subject" Type="String"/>
+    <ReportParameter Name="message" Type="String"/>
+    <ReportParameter Name="contactInfo" Type="String"/>
+    <ReportParameter Name="date" Type="String"/>
+  </ReportParameters>
+</Report>

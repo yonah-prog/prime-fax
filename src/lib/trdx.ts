@@ -89,29 +89,53 @@ function fontInfo(node: Record<string, unknown>): { size: number; bold: boolean;
   return { size: size > 0 ? size : 11, bold, italic }
 }
 
+// Split an expression on top-level "+" concatenation operators, ignoring any
+// "+" that appears inside a quoted string literal (e.g. a phone number value).
+function splitTopLevelPlus(s: string): string[] {
+  const parts: string[] = []
+  let cur = ""
+  let quote: string | null = null
+  for (const c of s) {
+    if (quote) {
+      cur += c
+      if (c === quote) quote = null
+    } else if (c === '"' || c === "'") {
+      quote = c
+      cur += c
+    } else if (c === "+") {
+      parts.push(cur)
+      cur = ""
+    } else {
+      cur += c
+    }
+  }
+  parts.push(cur)
+  return parts
+}
+
 // Resolve a TextBox Value expression against the supplied parameters.
 // Handles: "=Parameters.name.Value", "=Parameters.name", "=Fields.x",
-// '= "literal"', "= 'literal'", and plain static text.
+// '= "literal"', "= 'literal'", and concatenations joined with +.
+// Operands are resolved AFTER splitting, so a substituted value that itself
+// contains "+" (like "+17185550199") keeps it intact.
 function resolveValue(raw: unknown, params: TrdxParams): string {
   if (raw == null) return ""
   let s = String(raw)
   if (!s.startsWith("=")) return s
   s = s.slice(1).trim()
 
-  // Pure quoted literal
-  const lit = s.match(/^"([^"]*)"$/) || s.match(/^'([^']*)'$/)
-  if (lit) return lit[1]
-
-  // Substitute Parameters.x(.Value) and Fields.x references; concatenations
-  // joined with + are flattened, quoted literals preserved.
-  const withParams = s.replace(/Parameters\.([A-Za-z0-9_]+)(?:\.Value)?/g, (_, n) => params[n] ?? "")
-  const withFields = withParams.replace(/Fields\.([A-Za-z0-9_]+)/g, (_, n) => params[n] ?? "")
-  // Strip remaining quotes and + concatenation operators
-  const flattened = withFields
-    .split("+")
-    .map((part) => part.trim().replace(/^["']|["']$/g, ""))
+  return splitTopLevelPlus(s)
+    .map((operand) => {
+      const op = operand.trim()
+      const lit = op.match(/^"([^"]*)"$/) || op.match(/^'([^']*)'$/)
+      if (lit) return lit[1]
+      const param = op.match(/^Parameters\.([A-Za-z0-9_]+)(?:\.Value)?$/)
+      if (param) return params[param[1]] ?? ""
+      const field = op.match(/^Fields\.([A-Za-z0-9_]+)$/)
+      if (field) return params[field[1]] ?? ""
+      return op // unknown token — keep as-is
+    })
     .join("")
-  return flattened
 }
 
 function stripHtml(s: string): string {

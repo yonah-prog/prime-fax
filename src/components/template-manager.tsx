@@ -16,6 +16,19 @@ const emptyForm = {
 
 type FormState = typeof emptyForm
 
+// Parameters the fax engine fills in when rendering an uploaded TRDX cover
+// sheet. Bind a TextBox in your report with =Parameters.<name>.Value.
+const TRDX_FIELDS: { name: string; desc: string; example: string }[] = [
+  { name: "recipientName", desc: "Recipient's name", example: "Dr. Jane Smith" },
+  { name: "toNumber", desc: "Recipient's fax number", example: "+17185550199" },
+  { name: "fromName", desc: "Sender name (from template or number)", example: "Prime Infusions" },
+  { name: "fromNumber", desc: "Sending fax number", example: "+17185003640" },
+  { name: "subject", desc: "Fax subject line", example: "Prior Authorization" },
+  { name: "message", desc: "Cover sheet message / body", example: "This fax contains…" },
+  { name: "contactInfo", desc: "Sender contact details (multi-line)", example: "123 Main St…" },
+  { name: "date", desc: "Date the fax is sent", example: "June 19, 2026" },
+]
+
 export default function TemplateManager() {
   const [templates, setTemplates] = useState<CoverSheetTemplate[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,6 +43,7 @@ export default function TemplateManager() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
+  const [showGuide, setShowGuide] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
@@ -138,6 +152,78 @@ export default function TemplateManager() {
     <div className="flex gap-6">
       {/* List */}
       <div className="flex-1">
+        {/* TRDX guide */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
+          <button
+            onClick={() => setShowGuide((v) => !v)}
+            className="w-full flex items-center justify-between px-5 py-3.5 text-left"
+          >
+            <span className="text-sm font-semibold text-gray-900">
+              Building a custom TRDX cover sheet
+              <span className="ml-2 text-xs font-normal text-gray-400">available fields &amp; sample file</span>
+            </span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showGuide ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showGuide && (
+            <div className="px-5 pb-5 border-t border-gray-100 pt-4 space-y-4">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Design your cover sheet in any tool that exports Telerik Reporting
+                {" "}<strong>.trdx</strong> (e.g. Telerik Report Designer), then upload it to a template
+                below. Add a <strong>Report Parameter</strong> (type String) for each field you want filled
+                in, and bind a TextBox to it with{" "}
+                <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">=Parameters.recipientName.Value</code>.
+                When a fax is sent using the template, these parameters are filled in and the report is
+                rendered to PDF as the cover page.
+              </p>
+
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wide text-left">
+                      <th className="px-4 py-2">Parameter name</th>
+                      <th className="px-4 py-2">Description</th>
+                      <th className="px-4 py-2">Example</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {TRDX_FIELDS.map((f) => (
+                      <tr key={f.name}>
+                        <td className="px-4 py-2"><code className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs font-mono">{f.name}</code></td>
+                        <td className="px-4 py-2 text-gray-600">{f.desc}</td>
+                        <td className="px-4 py-2 text-gray-400 text-xs">{f.example}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <a
+                  href="/sample-cover-sheet.trdx"
+                  download
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Download sample .trdx
+                </a>
+                <span className="text-xs text-gray-500">Open it in Telerik Report Designer as a starting point, then customize the layout.</span>
+              </div>
+
+              <p className="text-xs text-gray-500 leading-relaxed">
+                <strong>Notes:</strong> Supported report items are TextBox, HtmlTextBox, Line, PictureBox, and
+                colored boxes — typical cover-sheet layout. Unsupported features are skipped, and if a TRDX
+                can&apos;t be rendered the system falls back to a generated cover sheet. You can also upload a
+                plain <strong>.pdf</strong> to use it directly as the cover page.
+              </p>
+            </div>
+          )}
+        </div>
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
             <span className="text-sm font-medium text-gray-700">{templates.length} template{templates.length !== 1 ? "s" : ""}</span>
