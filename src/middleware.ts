@@ -28,5 +28,10 @@ export default auth((req) => {
 })
 
 export const config = {
-  matcher: ["/((?!api/auth|api/webhooks|api/health|_next/static|_next/image|favicon.ico).*)"],
+  // Exclude auth/webhook/health APIs, Next internals, and static asset files
+  // (by extension) so public assets like cover-sheet .trdx/.pdf and the logo
+  // aren't redirected to /login.
+  matcher: [
+    "/((?!api/auth|api/webhooks|api/health|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp|woff2?|trdx|pdf|xml|txt)$).*)",
+  ],
 }
