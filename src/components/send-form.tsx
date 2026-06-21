@@ -26,7 +26,7 @@ const AREA_CODE_REGIONS: Record<string, string> = {
   "314": "St. Louis, MO", "816": "Kansas City, MO",
   "615": "Nashville, TN", "901": "Memphis, TN",
   "504": "New Orleans, LA", "225": "Baton Rouge, LA",
-  "702": "Las Vegas, NV", "808": "Hawaii",
+  "808": "Hawaii",
   "907": "Alaska",
 }
 
