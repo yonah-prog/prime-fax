@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 240" fill="none" role="img" aria-label="Premier Health">
-  <!-- Three-circle mark -->
-  <circle cx="58" cy="64" r="40" fill="#c9a8e8"/>
-  <circle cx="122" cy="122" r="40" fill="#9c34d4"/>
-  <circle cx="68" cy="182" r="41" fill="#3f1457"/>
+  <!-- Four-circle flower mark -->
+  <circle cx="92" cy="54" r="40" fill="#c9a8e8"/>
+  <circle cx="44" cy="120" r="42" fill="#3f1457"/>
+  <circle cx="142" cy="120" r="42" fill="#9c34d4"/>
+  <circle cx="92" cy="186" r="40" fill="#7a3a93"/>
   <!-- Wordmark -->
   <text x="232" y="160" font-family="'Montserrat', 'Poppins', 'Segoe UI', 'Arial Black', Arial, sans-serif" font-size="126" font-weight="800" letter-spacing="2" fill="#3f1457">PREMIER HEALTH</text>
 </svg>
