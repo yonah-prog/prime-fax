@@ -56,6 +56,11 @@ export default function SendForm() {
   const [csvPasteText, setCsvPasteText] = useState("")
   const csvFileInputRef = useRef<HTMLInputElement>(null)
 
+  // Live PDF preview (actual rendered cover sheet + attached PDF)
+  const [previewUrl, setPreviewUrl] = useState<string>("")
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState("")
+
   useEffect(() => {
     fetch("/api/templates").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setTemplates(data) }).catch(() => {})
     fetch("/api/numbers").then((r) => r.json()).then((data) => {
@@ -189,6 +194,52 @@ export default function SendForm() {
     setActiveTab("send")
     showToast(`${csvPreview.length} recipient${csvPreview.length > 1 ? "s" : ""} imported`, "success")
   }
+
+  const generatePreview = useCallback(async () => {
+    setPreviewLoading(true)
+    setPreviewError("")
+    try {
+      const validRecipients = recipients.filter((r) => r.number.trim())
+      const selectedNumber = numbers.find((n) => n.id === form.fromNumberId)
+      const fromNumber = selectedNumber?.number ?? ""
+
+      const data = new FormData()
+      if (file) data.append("file", file)
+      data.append("to", validRecipients[0]?.number ?? "")
+      data.append("from", fromNumber)
+      data.append("fromName", form.fromName)
+      data.append("recipientName", validRecipients[0]?.name ?? "")
+      data.append("subject", form.subject)
+      data.append("hasCoverSheet", String(form.hasCoverSheet))
+      if (form.coverSheetTemplateId) data.append("coverSheetTemplateId", form.coverSheetTemplateId)
+      data.append("coverSheetMessage", form.coverSheetMessage)
+      data.append("contactInfo", form.contactInfo)
+
+      const res = await fetch("/api/faxes/preview", { method: "POST", body: data })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        throw new Error(j.error ?? "Could not generate preview")
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      setPreviewUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return url })
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : "Could not generate preview")
+    } finally {
+      setPreviewLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipients, numbers, form, file])
+
+  // Regenerate the PDF preview whenever the Preview tab is opened.
+  useEffect(() => {
+    if (activeTab !== "preview") return
+    generatePreview()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
+
+  // Clean up the blob URL on unmount.
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -730,84 +781,46 @@ export default function SendForm() {
 
       {/* ── PREVIEW TAB ── */}
       {activeTab === "preview" && (
-        <div>
-          {form.hasCoverSheet ? (
-            <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm">
-              {/* Cover sheet header */}
-              <div className="bg-gray-800 text-white px-6 py-4">
-                <h2 className="text-lg font-bold tracking-wide uppercase">Fax Cover Sheet</h2>
-              </div>
-              <div className="bg-white px-6 py-5 space-y-3 text-sm">
-                <div className="grid grid-cols-[100px_1fr] gap-y-2.5">
-                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">To:</span>
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {recipients[0]?.name || <span className="text-gray-400 italic">No name</span>}
-                    </p>
-                    <p className="font-mono text-gray-600 text-xs mt-0.5">
-                      {recipients[0]?.number || <span className="text-gray-400 italic">No number</span>}
-                    </p>
-                    {recipients.length > 1 && (
-                      <p className="text-xs text-gray-400 mt-0.5">+ {recipients.length - 1} more recipient{recipients.length > 2 ? "s" : ""}</p>
-                    )}
-                  </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-600">
+              Exactly what will be transmitted — cover sheet{file ? " + attached PDF" : ""}.
+            </p>
+            <button
+              type="button"
+              onClick={generatePreview}
+              disabled={previewLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <svg className={`w-4 h-4 ${previewLoading ? "animate-spin" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {previewLoading ? "Rendering…" : "Refresh"}
+            </button>
+          </div>
 
-                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">From:</span>
-                  <p className="font-medium text-gray-900">
-                    {form.fromName || <span className="text-gray-400 italic">Unknown</span>}
-                  </p>
-
-                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Subject:</span>
-                  <p className="text-gray-900">
-                    {form.subject || <span className="text-gray-400 italic">No subject</span>}
-                  </p>
-
-                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Date:</span>
-                  <p className="text-gray-900">{new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-
-                  <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">Pages:</span>
-                  <p className="text-gray-900">{file ? "1+ (attachment included)" : "0 (no attachment)"}</p>
-
-                  {file && (
-                    <>
-                      <span className="font-semibold text-gray-600 uppercase text-xs tracking-wider pt-0.5">File:</span>
-                      <p className="text-gray-700 font-mono text-xs">{file.name}</p>
-                    </>
-                  )}
-                </div>
-
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <p className="font-semibold text-gray-600 uppercase text-xs tracking-wider mb-2">Message:</p>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-xs">
-                    {form.coverSheetMessage || <span className="text-gray-400 italic">No message</span>}
-                  </p>
-                </div>
-
-                {form.contactInfo && (
-                  <div className="border-t border-gray-200 pt-3">
-                    <p className="font-semibold text-gray-600 uppercase text-xs tracking-wider mb-2">Contact Info:</p>
-                    <p className="text-gray-700 text-xs whitespace-pre-wrap">{form.contactInfo}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
+          {previewError ? (
             <div className="rounded bg-amber-50 border border-amber-200 px-4 py-4 text-sm text-amber-800">
-              <p className="font-medium mb-1">Cover sheet disabled</p>
-              <p className="text-amber-700">
-                The fax will be sent without a cover sheet. Enable it on the{" "}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("send")}
-                  className="text-blue-600 hover:underline"
-                >
-                  Send Fax
-                </button>{" "}
-                tab.
-              </p>
-              {file && (
-                <p className="mt-2 text-xs text-amber-600">Attached file: <span className="font-mono">{file.name}</span></p>
+              {previewError}
+              {!form.hasCoverSheet && !file && (
+                <span> Enable the cover sheet on the{" "}
+                  <button type="button" onClick={() => setActiveTab("send")} className="text-blue-600 hover:underline">Send Fax</button>{" "}
+                  tab or attach a PDF.</span>
               )}
+            </div>
+          ) : previewLoading && !previewUrl ? (
+            <div className="border border-gray-200 rounded-lg h-[820px] flex items-center justify-center text-sm text-gray-400">
+              Rendering preview…
+            </div>
+          ) : previewUrl ? (
+            <iframe
+              src={previewUrl}
+              title="Fax preview"
+              className="w-full h-[820px] border border-gray-300 rounded-lg bg-gray-50"
+            />
+          ) : (
+            <div className="border border-gray-200 rounded-lg h-[820px] flex items-center justify-center text-sm text-gray-400">
+              No preview yet.
             </div>
           )}
         </div>
