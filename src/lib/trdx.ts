@@ -246,6 +246,23 @@ export async function renderTrdxToPdf(xml: string, params: TrdxParams): Promise<
         const width = toPoints(prop(node, "Width"), 100)
         const height = toPoints(prop(node, "Height"), 14)
 
+        // Ellipse / circle shapes (e.g. logo marks)
+        const shapeType = String(prop(node, "ShapeType") ?? prop(node, "Shape") ?? "").toLowerCase()
+        if (type === "Ellipse" || (type === "Shape" && shapeType.includes("ellipse"))) {
+          const fill = parseColor(prop(node, "BackgroundColor") ?? prop(node, "Color") ?? prop(node, "Fill"))
+          if (fill) {
+            page.drawEllipse({
+              x: left + width / 2,
+              y: pageH - top - height / 2,
+              xScale: width / 2,
+              yScale: height / 2,
+              color: fill,
+            })
+            drewSomething = true
+          }
+          continue
+        }
+
         // Background fill (boxes, panels, filled textboxes)
         const bg = parseColor(prop(node, "BackgroundColor"))
         if (bg && (type === "PanelBox" || type === "Shape" || type === "TextBox" || type === "HtmlTextBox")) {
