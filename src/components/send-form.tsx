@@ -6,6 +6,42 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { showToast } from "./toast"
 import type { CoverSheetTemplate, Contact, PhoneNumber } from "@/lib/db/schema"
 
+const AREA_CODE_REGIONS: Record<string, string> = {
+  "212": "New York, NY", "718": "New York, NY", "646": "New York, NY", "917": "New York, NY",
+  "713": "Houston, TX", "832": "Houston, TX", "281": "Houston, TX",
+  "305": "Miami, FL", "786": "Miami, FL", "954": "Fort Lauderdale, FL",
+  "561": "West Palm Beach, FL", "407": "Orlando, FL", "813": "Tampa, FL",
+  "312": "Chicago, IL", "773": "Chicago, IL", "630": "Chicago suburbs, IL",
+  "310": "Los Angeles, CA", "213": "Los Angeles, CA", "323": "Los Angeles, CA",
+  "415": "San Francisco, CA", "628": "San Francisco, CA",
+  "214": "Dallas, TX", "972": "Dallas, TX", "469": "Dallas, TX",
+  "404": "Atlanta, GA", "770": "Atlanta, GA", "678": "Atlanta, GA",
+  "602": "Phoenix, AZ", "480": "Phoenix, AZ", "623": "Phoenix, AZ",
+  "617": "Boston, MA", "781": "Boston suburbs, MA",
+  "215": "Philadelphia, PA", "267": "Philadelphia, PA",
+  "702": "Las Vegas, NV", "725": "Las Vegas, NV",
+  "503": "Portland, OR", "971": "Portland, OR",
+  "206": "Seattle, WA", "425": "Seattle suburbs, WA",
+  "303": "Denver, CO", "720": "Denver, CO",
+  "314": "St. Louis, MO", "816": "Kansas City, MO",
+  "615": "Nashville, TN", "901": "Memphis, TN",
+  "504": "New Orleans, LA", "225": "Baton Rouge, LA",
+  "702": "Las Vegas, NV", "808": "Hawaii",
+  "907": "Alaska",
+}
+
+function getAreaCodeRegion(number: string): string {
+  const digits = number.replace(/\D/g, "")
+  const areaCode = digits.startsWith("1") ? digits.slice(1, 4) : digits.slice(0, 3)
+  return AREA_CODE_REGIONS[areaCode] ?? ""
+}
+
+function formatNumberLabel(n: { label?: string | null; number: string }): string {
+  const region = getAreaCodeRegion(n.number)
+  const parts = [n.label, n.number, region ? `(${region})` : ""].filter(Boolean)
+  return parts.join(" — ")
+}
+
 const DEFAULT_COVER_MESSAGE =
   "This fax contains confidential information intended only for the designated recipient(s). If you received this fax in error, please notify the sender immediately and destroy all copies. Do not disclose, copy, or distribute without authorization. (45 CFR 164.530)"
 
@@ -428,7 +464,7 @@ export default function SendForm() {
                 {numbers.length === 0 && <option value="">No numbers configured</option>}
                 {numbers.map((n) => (
                   <option key={n.id} value={n.id}>
-                    {n.label ? `${n.label} — ` : ""}{n.number}
+                    {formatNumberLabel(n)}
                   </option>
                 ))}
               </select>
