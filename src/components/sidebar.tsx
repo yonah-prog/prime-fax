@@ -106,7 +106,7 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
       {/* Logo */}
       <div className="px-4 py-3.5 bg-white border-b border-gray-200 flex items-center justify-between">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/premier-health-logo.svg" alt="Premier Health" className="h-9 w-auto" />
+        <img src="/premier-health-logo.svg" alt="Premier Health" className="h-7 w-auto" />
         {onClose && (
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden shrink-0 ml-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
