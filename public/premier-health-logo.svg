@@ -1,11 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 240" fill="none" role="img" aria-label="Premier Health">
-  <!-- Flower mark -->
-  <circle cx="66" cy="120" r="46" fill="#3a0d4f"/>
-  <circle cx="126" cy="60" r="38" fill="#cda9e8"/>
-  <circle cx="182" cy="116" r="44" fill="#a51fc6"/>
-  <circle cx="110" cy="178" r="41" fill="#8a4aa0"/>
-  <circle cx="120" cy="118" r="14" fill="#6a2a86"/>
-  <circle cx="154" cy="152" r="8" fill="#cda9e8"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1480 240" fill="none" role="img" aria-label="Premier Health">
+  <!-- Three-circle mark -->
+  <circle cx="62" cy="66" r="38" fill="#c9a8e8"/>
+  <circle cx="118" cy="120" r="38" fill="#9c34d4"/>
+  <circle cx="71" cy="184" r="39" fill="#3f1457"/>
   <!-- Wordmark -->
-  <text x="266" y="160" font-family="'Arial Black', 'Arial Bold', Arial, sans-serif" font-size="126" font-weight="900" letter-spacing="2" fill="#3a0d4f">PREMIER HEALTH</text>
+  <text x="210" y="160" font-family="'Arial Black', 'Arial Bold', Arial, sans-serif" font-size="126" font-weight="900" letter-spacing="2" fill="#3f1457">PREMIER HEALTH</text>
 </svg>
