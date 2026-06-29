@@ -91,14 +91,6 @@ interface SidebarContentProps {
 
 function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
   const pathname = usePathname()
-  const [open, setOpen] = useState<Record<string, boolean>>({
-    Faxing: true,
-    Account: true,
-    "Admin Features": false,
-    "Site Navigation": false,
-  })
-
-  const toggle = (title: string) => setOpen((prev) => ({ ...prev, [title]: !prev[title] }))
   const isAdmin = role === "admin"
 
   return (
@@ -122,22 +114,12 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
           if (section.adminOnly && !isAdmin) return null
           return (
             <div key={section.title}>
-              <button
-                onClick={() => toggle(section.title)}
-                className="w-full flex items-center justify-between px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300 hover:text-white transition-colors"
-              >
+              <div className="px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-blue-300">
                 {section.title}
-                <svg
-                  className={`w-3.5 h-3.5 transition-transform ${open[section.title] ? "rotate-180" : ""}`}
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+              </div>
 
-              {open[section.title] && (
-                <div className="mt-1 mb-1">
-                  {section.items.map(({ href, label, alert }) => {
+              <div className="mt-1 mb-1">
+                {section.items.map(({ href, label, alert }) => {
                     const active = pathname === href.split("?")[0] && !href.includes("?")
                     const badge = label === "Received Faxes" && unreadCount > 0 ? unreadCount : null
                     return (
@@ -171,7 +153,6 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
                     )
                   })}
                 </div>
-              )}
             </div>
           )
         })}
@@ -219,14 +200,14 @@ export default function Sidebar({ role, unreadCount }: Props) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="relative z-50 w-[288px] flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+          <aside className="relative z-50 w-[259px] flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
             <SidebarContent role={role} unreadCount={unreadCount} onClose={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-[288px] shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+      <aside className="hidden lg:flex w-[259px] shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
         <SidebarContent role={role} unreadCount={unreadCount} />
       </aside>
     </>
