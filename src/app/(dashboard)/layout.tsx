@@ -1,7 +1,8 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
-import { and, count, eq, isNull } from "drizzle-orm"
+import { and, count, eq, isNull, inArray } from "drizzle-orm"
+import { getFaxAccess } from "@/lib/fax-access"
 import Sidebar from "@/components/sidebar"
 import ToastContainer from "@/components/toast"
 
@@ -16,10 +17,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
   let userDept: string | null = null
 
   try {
+    const access = await getFaxAccess()
+    const unreadConds = [eq(faxes.direction, "inbound"), isNull(faxes.readAt), isNull(faxes.trashedAt)]
+    if (!access.isAdmin) {
+      if (!access.canViewInbound || access.numbers.length === 0) unreadConds.push(eq(faxes.id, "00000000-0000-0000-0000-000000000000"))
+      else unreadConds.push(inArray(faxes.toNumber, access.numbers))
+    }
     const [unreadResult] = await db
       .select({ value: count() })
       .from(faxes)
-      .where(and(eq(faxes.direction, "inbound"), isNull(faxes.readAt), isNull(faxes.trashedAt)))
+      .where(and(...unreadConds))
     unreadCount = unreadResult?.value ?? 0
 
     if (userId) {

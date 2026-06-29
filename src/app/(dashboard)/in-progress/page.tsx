@@ -1,8 +1,9 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers } from "@/lib/db/schema"
-import { and, count, eq, gte, inArray, isNull, desc } from "drizzle-orm"
+import { and, count, eq, gte, inArray, isNull, desc, sql } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
+import { getFaxAccess } from "@/lib/fax-access"
 
 export const dynamic = "force-dynamic"
 
@@ -16,6 +17,7 @@ export default async function InProgressPage({
 
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
 
+  const access = await getFaxAccess()
   const inboundConditions = [
     eq(faxes.direction, "inbound"),
     isNull(faxes.trashedAt),
@@ -26,6 +28,12 @@ export default async function InProgressPage({
     isNull(faxes.trashedAt),
     inArray(faxes.status, ["queued", "sending"]),
   ]
+  // Per-user access scoping
+  if (!access.isAdmin) {
+    if (!access.canViewInbound || access.numbers.length === 0) inboundConditions.push(sql`false`)
+    else inboundConditions.push(inArray(faxes.toNumber, access.numbers))
+    if (!access.canViewAllSent) sendingConditions.push(eq(faxes.userId, access.userId ?? ""))
+  }
   if (number) {
     inboundConditions.push(eq(faxes.toNumber, number))
     sendingConditions.push(eq(faxes.fromNumber, number))

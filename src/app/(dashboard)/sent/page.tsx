@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
 import { and, asc, count, eq, gte, ilike, isNull, lte, ne, or, desc, sql } from "drizzle-orm"
+import { getFaxAccess } from "@/lib/fax-access"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"
@@ -37,7 +38,10 @@ export default async function SentPage({
   const sortBy = p.sortBy ?? "date_desc"
   const showDeleted = p.showDeleted === "1"
 
+  // Per-user access scoping: staff without "view all sent" only see their own.
+  const access = await getFaxAccess()
   const base = [eq(faxes.direction, "outbound")]
+  if (!access.isAdmin && !access.canViewAllSent) base.push(eq(faxes.userId, access.userId ?? ""))
   if (!showDeleted) base.push(isNull(faxes.trashedAt))
   if (p.q) base.push(or(
     ilike(faxes.toNumber, `%${p.q}%`),

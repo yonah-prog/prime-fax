@@ -1,6 +1,7 @@
 import { db } from "@/lib/db"
 import { faxes, phoneNumbers, users } from "@/lib/db/schema"
-import { and, asc, count, eq, gte, ilike, isNull, lte, ne, or, desc, sql } from "drizzle-orm"
+import { and, asc, count, eq, gte, ilike, inArray, isNull, lte, ne, or, desc, sql } from "drizzle-orm"
+import { getFaxAccess } from "@/lib/fax-access"
 import FaxTable from "@/components/fax-table"
 import AutoRefresh from "@/components/auto-refresh"
 import FaxToolbar from "@/components/fax-toolbar"
@@ -36,7 +37,14 @@ export default async function InboxPage({
   const sortBy = p.sortBy ?? "date_desc"
   const showDeleted = p.showDeleted === "1"
 
+  // Per-user access scoping: staff only see inbound faxes for numbers they're
+  // granted, and only if they have inbound viewing permission.
+  const access = await getFaxAccess()
   const base = [eq(faxes.direction, "inbound")]
+  if (!access.isAdmin) {
+    if (!access.canViewInbound || access.numbers.length === 0) base.push(sql`false`)
+    else base.push(inArray(faxes.toNumber, access.numbers))
+  }
   if (!showDeleted) base.push(isNull(faxes.trashedAt))
   if (p.q) base.push(or(ilike(faxes.fromNumber, `%${p.q}%`), ilike(faxes.fromName, `%${p.q}%`))!)
   if (p.from) base.push(gte(faxes.createdAt, new Date(p.from)))

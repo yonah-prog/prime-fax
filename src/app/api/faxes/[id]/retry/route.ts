@@ -1,18 +1,18 @@
-import { auth } from "@/auth"
 import { db } from "@/lib/db"
 import { faxes } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { audit } from "@/lib/audit"
+import { getFaxAccess, canSeeFax } from "@/lib/fax-access"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const access = await getFaxAccess()
+  if (!access.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
   const fax = await db.query.faxes.findFirst({ where: eq(faxes.id, id) })
-  if (!fax) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if (!fax || !canSeeFax(access, fax)) return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (fax.status !== "failed") return NextResponse.json({ error: "Only failed faxes can be retried" }, { status: 400 })
   if (!fax.fileUrl) return NextResponse.json({ error: "No file to send" }, { status: 400 })
 
@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     await db.update(faxes)
       .set({ telnyxFaxId: telnyxFax.id, status: "sending", updatedAt: new Date() })
       .where(eq(faxes.id, id))
-    audit({ userId: session.user?.id, userEmail: session.user?.email, action: "fax_retried", resourceType: "fax", resourceId: id })
+    audit({ userId: access.userId, userEmail: access.email, action: "fax_retried", resourceType: "fax", resourceId: id })
     return NextResponse.json({ ok: true, status: "sending" })
   } catch (err) {
     await db.update(faxes)

@@ -1,8 +1,9 @@
 import { db } from "@/lib/db"
 import { faxes } from "@/lib/db/schema"
-import { and, count, eq, isNotNull, isNull, desc } from "drizzle-orm"
+import { and, count, eq, isNotNull, inArray, desc, sql, type SQL } from "drizzle-orm"
 import FaxTable from "@/components/fax-table"
 import FaxToolbar from "@/components/fax-toolbar"
+import { getFaxAccess } from "@/lib/fax-access"
 import { Suspense } from "react"
 
 export const dynamic = "force-dynamic"
@@ -15,21 +16,33 @@ export default async function TrashPage({
   const { tab } = await searchParams
   const activeTab = tab === "sent" ? "sent" : "received"
 
+  // Per-user access scoping (same rules as the inbox/sent pages).
+  const access = await getFaxAccess()
+  const inboundCond: SQL[] = access.isAdmin
+    ? []
+    : (!access.canViewInbound || access.numbers.length === 0)
+      ? [sql`false`]
+      : [inArray(faxes.toNumber, access.numbers)]
+  const outboundCond: SQL[] = access.isAdmin || access.canViewAllSent
+    ? []
+    : [eq(faxes.userId, access.userId ?? "")]
+
+  const activeCond = activeTab === "sent" ? outboundCond : inboundCond
   const dirFilter = activeTab === "sent"
     ? eq(faxes.direction, "outbound")
     : eq(faxes.direction, "inbound")
 
   const [rows, receivedCount, sentCount] = await Promise.all([
     db.query.faxes.findMany({
-      where: and(isNotNull(faxes.trashedAt), dirFilter),
+      where: and(isNotNull(faxes.trashedAt), dirFilter, ...activeCond),
       orderBy: [desc(faxes.trashedAt)],
       limit: 100,
     }),
     db.select({ value: count() }).from(faxes).where(
-      and(isNotNull(faxes.trashedAt), eq(faxes.direction, "inbound"))
+      and(isNotNull(faxes.trashedAt), eq(faxes.direction, "inbound"), ...inboundCond)
     ),
     db.select({ value: count() }).from(faxes).where(
-      and(isNotNull(faxes.trashedAt), eq(faxes.direction, "outbound"))
+      and(isNotNull(faxes.trashedAt), eq(faxes.direction, "outbound"), ...outboundCond)
     ),
   ])
 
