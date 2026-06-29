@@ -92,12 +92,13 @@ export async function uploadToDriveForUser(
 export async function uploadToDriveForAll(
   buf: Buffer,
   fileName: string,
-  mimeType = "application/pdf"
+  mimeType = "application/pdf",
+  folderOverride?: string | null
 ): Promise<void> {
   const connected = await db.query.users.findMany({
     where: isNotNull(users.googleRefreshToken),
   })
   await Promise.allSettled(
-    connected.map((u) => uploadToDriveForUser(u.id, buf, fileName, mimeType))
+    connected.map((u) => uploadToDriveForUser(u.id, buf, fileName, mimeType, folderOverride))
   )
 }

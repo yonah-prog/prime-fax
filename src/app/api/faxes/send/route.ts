@@ -6,7 +6,7 @@ import { uploadToR2 } from "@/lib/storage"
 import { prependCoverSheet } from "@/lib/cover-sheet"
 import { buildCoverSheet } from "@/lib/build-cover"
 import { audit } from "@/lib/audit"
-import { uploadToDriveForUser } from "@/lib/google-drive"
+import { uploadToDriveForAll } from "@/lib/google-drive"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
@@ -75,15 +75,15 @@ export async function POST(req: Request) {
   const key = `outbound/${randomUUID()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`
   const fileUrl = await uploadToR2(fileBuffer, key, contentType)
 
-  // Upload to Google Drive for the sending user (fire-and-forget). Use the
-  // sending number's configured Drive folder if one is set, else the user's.
-  if (session.user?.id) {
+  // Mirror to all connected Google Drives, into the sending number's outbound
+  // folder (fire-and-forget).
+  {
     const fromRecord = await db.query.phoneNumbers.findFirst({
       where: eq(phoneNumbers.number, fromNumber),
       columns: { googleDriveFolder: true },
     })
     const driveFileName = `Sent-${fileName}-${new Date().toISOString().slice(0, 10)}.pdf`
-    uploadToDriveForUser(session.user.id, fileBuffer, driveFileName, contentType, fromRecord?.googleDriveFolder)
+    uploadToDriveForAll(fileBuffer, driveFileName, contentType, fromRecord?.googleDriveFolder)
       .catch((e) => console.error("Drive upload (outbound) failed:", e))
   }
 

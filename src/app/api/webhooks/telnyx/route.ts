@@ -49,9 +49,19 @@ export async function POST(req: Request) {
     })
     if (blocked) return NextResponse.json({ ok: true })
 
+    const toNumber = (payload.to as string) ?? process.env.TELNYX_FROM_NUMBER!
+    const pageCount = (payload.page_count as number) ?? null
+
+    // Per-line config for this receiving number (inbound Drive folder + forwarding)
+    const numberRecord = await db.query.phoneNumbers.findFirst({
+      where: eq(phoneNumbers.number, toNumber),
+      columns: { inboundDriveFolder: true, forwardToNumber: true },
+    })
+
     let fileUrl = payload.media_url as string | undefined
 
-    // Re-host fax media on R2 for permanent storage; also upload to Google Drive
+    // Re-host fax media on R2 for permanent storage; also mirror to all connected
+    // Google Drives, into this line's inbound folder.
     if (fileUrl) {
       try {
         const res = await fetch(fileUrl, {
@@ -62,15 +72,12 @@ export async function POST(req: Request) {
           const contentType = res.headers.get("content-type") ?? "application/pdf"
           fileUrl = await uploadToR2(buffer, `inbound/${randomUUID()}.pdf`, contentType)
           const driveFileName = `Inbound-${fromNumber}-${new Date().toISOString().slice(0, 10)}.pdf`
-          uploadToDriveForAll(buffer, driveFileName, contentType).catch((e) => console.error("Drive upload (inbound) failed:", e))
+          uploadToDriveForAll(buffer, driveFileName, contentType, numberRecord?.inboundDriveFolder).catch((e) => console.error("Drive upload (inbound) failed:", e))
         }
       } catch {
         // Keep Telnyx URL as fallback
       }
     }
-
-    const toNumber = (payload.to as string) ?? process.env.TELNYX_FROM_NUMBER!
-    const pageCount = (payload.page_count as number) ?? null
 
     await db.insert(faxes).values({
       direction: "inbound",
@@ -88,10 +95,6 @@ export async function POST(req: Request) {
     // Auto-forward to an outside number if this receiving number is configured for it
     if (fileUrl) {
       try {
-        const numberRecord = await db.query.phoneNumbers.findFirst({
-          where: eq(phoneNumbers.number, toNumber),
-          columns: { forwardToNumber: true },
-        })
         const forwardTo = numberRecord?.forwardToNumber?.trim()
         if (forwardTo) {
           const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/telnyx`

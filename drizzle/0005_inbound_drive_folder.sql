@@ -1,0 +1,1 @@
+ALTER TABLE "phone_numbers" ADD COLUMN IF NOT EXISTS "inbound_drive_folder" text;

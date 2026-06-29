@@ -20,6 +20,7 @@ export async function GET() {
       isDefault: phoneNumbers.isDefault,
       coverSheetTemplateId: phoneNumbers.coverSheetTemplateId,
       googleDriveFolder: phoneNumbers.googleDriveFolder,
+      inboundDriveFolder: phoneNumbers.inboundDriveFolder,
       forwardToNumber: phoneNumbers.forwardToNumber,
       createdAt: phoneNumbers.createdAt,
       numUsersAssigned: sql<number>`(SELECT COUNT(*) FROM users WHERE users.assigned_number_id = ${phoneNumbers.id})::int`,
