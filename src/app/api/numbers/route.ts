@@ -19,7 +19,6 @@ export async function GET() {
       active: phoneNumbers.active,
       isDefault: phoneNumbers.isDefault,
       coverSheetTemplateId: phoneNumbers.coverSheetTemplateId,
-      googleDriveFolder: phoneNumbers.googleDriveFolder,
       inboundDriveFolder: phoneNumbers.inboundDriveFolder,
       forwardToNumber: phoneNumbers.forwardToNumber,
       createdAt: phoneNumbers.createdAt,

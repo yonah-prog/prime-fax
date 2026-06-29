@@ -15,7 +15,6 @@ interface NumberWithCounts {
   active: boolean
   isDefault: boolean
   coverSheetTemplateId?: string | null
-  googleDriveFolder?: string | null
   inboundDriveFolder?: string | null
   forwardToNumber?: string | null
   createdAt: Date
@@ -81,8 +80,7 @@ export default function NumberManager() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [savingTemplate, setSavingTemplate] = useState(false)
 
-  // Per-number settings: Google Drive folders (outbound + inbound) + forwarding
-  const [driveFolder, setDriveFolder] = useState<string>("")
+  // Per-number settings: inbound Google Drive folder + forwarding
   const [inboundFolder, setInboundFolder] = useState<string>("")
   const [forwardTo, setForwardTo] = useState<string>("")
   const [savingSettings, setSavingSettings] = useState(false)
@@ -124,7 +122,6 @@ export default function NumberManager() {
   async function loadUsers(number: NumberWithCounts) {
     setSelectedNumber(number)
     setSelectedTemplateId(number.coverSheetTemplateId ?? "")
-    setDriveFolder(number.googleDriveFolder ?? "")
     setInboundFolder(number.inboundDriveFolder ?? "")
     setForwardTo(number.forwardToNumber ?? "")
     setDetailTab("users")
@@ -151,18 +148,17 @@ export default function NumberManager() {
 
   async function saveSettings(numberId: string) {
     setSavingSettings(true)
-    const driveVal = driveFolder.trim() || null
     const inboundVal = inboundFolder.trim() || null
     const forwardVal = forwardTo.trim() || null
     await fetch(`/api/numbers/${numberId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ googleDriveFolder: driveVal, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal }),
+      body: JSON.stringify({ inboundDriveFolder: inboundVal, forwardToNumber: forwardVal }),
     })
     setSavingSettings(false)
     await load()
     if (selectedNumber) {
-      setSelectedNumber((prev) => prev ? { ...prev, googleDriveFolder: driveVal, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal } : prev)
+      setSelectedNumber((prev) => prev ? { ...prev, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal } : prev)
     }
   }
 
@@ -596,7 +592,7 @@ export default function NumberManager() {
                     onClick={() => setDetailTab("settings")}
                   >
                     Settings
-                    {(selectedNumber.googleDriveFolder || selectedNumber.forwardToNumber) && (
+                    {(selectedNumber.inboundDriveFolder || selectedNumber.forwardToNumber) && (
                       <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
                     )}
                   </button>
@@ -718,21 +714,6 @@ export default function NumberManager() {
                         value={inboundFolder}
                         onChange={(e) => setInboundFolder(e.target.value)}
                         placeholder="e.g. Faxes / Main Office / Received"
-                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Outbound Google Drive folder</label>
-                      <p className="text-xs text-gray-500 mb-2">
-                        Faxes <strong>sent</strong> from this number are saved to this folder in the connected
-                        Google Drive. Leave blank to use the default folder.
-                      </p>
-                      <input
-                        type="text"
-                        value={driveFolder}
-                        onChange={(e) => setDriveFolder(e.target.value)}
-                        placeholder="e.g. Faxes / Main Office / Sent"
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>

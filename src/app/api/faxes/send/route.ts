@@ -1,12 +1,11 @@
 import { auth } from "@/auth"
 import { db } from "@/lib/db"
-import { faxes, phoneNumbers } from "@/lib/db/schema"
+import { faxes } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { prependCoverSheet } from "@/lib/cover-sheet"
 import { buildCoverSheet } from "@/lib/build-cover"
 import { audit } from "@/lib/audit"
-import { uploadToDriveForAll } from "@/lib/google-drive"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
@@ -74,18 +73,6 @@ export async function POST(req: Request) {
   const fileBuffer = Buffer.from(fileBytes)
   const key = `outbound/${randomUUID()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`
   const fileUrl = await uploadToR2(fileBuffer, key, contentType)
-
-  // Mirror to all connected Google Drives, into the sending number's outbound
-  // folder (fire-and-forget).
-  {
-    const fromRecord = await db.query.phoneNumbers.findFirst({
-      where: eq(phoneNumbers.number, fromNumber),
-      columns: { googleDriveFolder: true },
-    })
-    const driveFileName = `Sent-${fileName}-${new Date().toISOString().slice(0, 10)}.pdf`
-    uploadToDriveForAll(fileBuffer, driveFileName, contentType, fromRecord?.googleDriveFolder)
-      .catch((e) => console.error("Drive upload (outbound) failed:", e))
-  }
 
   // Broadcast ID links all recipients in a single broadcast together
   const broadcastId = recipients.length > 1 ? randomUUID() : undefined
