@@ -219,14 +219,14 @@ export default function Sidebar({ role, unreadCount }: Props) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="relative z-50 w-56 flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+          <aside className="relative z-50 w-64 flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
             <SidebarContent role={role} unreadCount={unreadCount} onClose={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-52 shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+      <aside className="hidden lg:flex w-64 shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
         <SidebarContent role={role} unreadCount={unreadCount} />
       </aside>
     </>
