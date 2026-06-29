@@ -41,10 +41,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex bg-white">
       {/* ── Brand panel ── */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#2c0d3f] via-[#5a1f8f] to-[#9c34d4]">
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-gradient-to-br from-[#3a4bc4] via-[#5469d4] to-[#7184e6]">
         {/* Decorative circles echoing the logo mark */}
         <div className="absolute -top-24 -left-16 w-80 h-80 rounded-full bg-white/10" />
-        <div className="absolute top-1/3 -right-24 w-96 h-96 rounded-full bg-[#c9a8e8]/20" />
+        <div className="absolute top-1/3 -right-24 w-96 h-96 rounded-full bg-white/10" />
         <div className="absolute -bottom-28 left-1/4 w-72 h-72 rounded-full bg-white/5" />
 
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
@@ -120,7 +120,7 @@ export default function LoginPage() {
                   required
                   autoComplete="email"
                   placeholder="you@premierhealth.com"
-                  className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#9c34d4] focus:ring-2 focus:ring-[#9c34d4]/25 transition-colors"
+                  className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#5469d4] focus:ring-2 focus:ring-[#5469d4]/30 transition-colors"
                 />
               </div>
             </div>
@@ -141,7 +141,7 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#9c34d4] focus:ring-2 focus:ring-[#9c34d4]/25 transition-colors"
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#5469d4] focus:ring-2 focus:ring-[#5469d4]/30 transition-colors"
                 />
                 <button
                   type="button"
@@ -166,7 +166,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 px-4 bg-gradient-to-r from-[#3f1457] to-[#9c34d4] hover:opacity-95 disabled:opacity-60 text-white text-sm font-semibold rounded-lg shadow-sm transition-opacity flex items-center justify-center gap-2"
+              className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
