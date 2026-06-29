@@ -4,16 +4,6 @@ import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 
-function LogoMark({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 152 204" className={className} aria-hidden="true">
-      <circle cx="48" cy="44" r="38" fill="#c9a8e8" />
-      <circle cx="104" cy="98" r="38" fill="#9c34d4" />
-      <circle cx="57" cy="162" r="39" fill="#3f1457" />
-    </svg>
-  )
-}
-
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
@@ -48,11 +38,9 @@ export default function LoginPage() {
         <div className="absolute -bottom-28 left-1/4 w-72 h-72 rounded-full bg-white/5" />
 
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
-          <div className="flex items-center gap-3">
-            <div className="bg-white rounded-xl p-2 shadow-lg">
-              <LogoMark className="w-7 h-9" />
-            </div>
-            <span className="text-xl font-extrabold tracking-wide">PREMIER HEALTH</span>
+          <div className="bg-white rounded-xl px-5 py-3 shadow-lg self-start">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/premier-health-logo.svg" alt="Premier Health" className="h-8 w-auto" />
           </div>
 
           <div className="max-w-md">
@@ -84,9 +72,9 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="flex items-center gap-2.5 justify-center mb-8 lg:hidden">
-            <LogoMark className="w-7 h-9" />
-            <span className="text-lg font-extrabold text-[#3f1457] tracking-wide">PREMIER HEALTH</span>
+          <div className="flex justify-center mb-8 lg:hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/premier-health-logo.svg" alt="Premier Health" className="h-9 w-auto" />
           </div>
 
           <div className="mb-8">
