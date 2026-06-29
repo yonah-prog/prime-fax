@@ -90,38 +90,55 @@ export default function TemplateManager() {
     const method = editing ? "PUT" : "POST"
     const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
 
-    if (res.ok) {
-      const saved: CoverSheetTemplate = await res.json()
-      setSavedTemplate(saved)
-      if (!editing) setEditing(saved)
-      await load()
-    } else {
+    if (!res.ok) {
       const data = await res.json().catch(() => ({}))
       setError(data.error ?? "Failed to save")
+      setSaving(false)
+      return
     }
+
+    let saved: CoverSheetTemplate = await res.json()
+    // If a design file was staged (e.g. while creating a new template), upload
+    // it now that we have a template id.
+    if (uploadFile) {
+      const updated = await uploadFileTo(saved.id)
+      if (updated) saved = updated
+    }
+    setSavedTemplate(saved)
+    if (!editing) setEditing(saved)
+    await load()
     setSaving(false)
   }
 
-  async function uploadDesignFile() {
-    if (!uploadFile || !savedTemplate) return
+  // Uploads the currently-staged file to a template; returns the updated record.
+  async function uploadFileTo(templateId: string): Promise<CoverSheetTemplate | null> {
+    if (!uploadFile) return null
     setUploading(true)
     setUploadError("")
 
     const fd = new FormData()
     fd.append("file", uploadFile)
-    fd.append("templateId", savedTemplate.id)
+    fd.append("templateId", templateId)
 
     const res = await fetch("/api/templates/upload", { method: "POST", body: fd })
+    setUploading(false)
     if (res.ok) {
       const updated: CoverSheetTemplate = await res.json()
-      setSavedTemplate(updated)
       setUploadFile(null)
-      await load()
-    } else {
-      const data = await res.json().catch(() => ({}))
-      setUploadError(data.error ?? "Upload failed")
+      return updated
     }
-    setUploading(false)
+    const data = await res.json().catch(() => ({}))
+    setUploadError(data.error ?? "Upload failed")
+    return null
+  }
+
+  async function uploadDesignFile() {
+    if (!uploadFile || !savedTemplate) return
+    const updated = await uploadFileTo(savedTemplate.id)
+    if (updated) {
+      setSavedTemplate(updated)
+      await load()
+    }
   }
 
   async function remove(id: string) {
@@ -313,78 +330,79 @@ export default function TemplateManager() {
               Set as default template
             </label>
 
+            {/* Design file (TRDX / PDF / XML) — available when creating or editing */}
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Design File</p>
+                {currentFile && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    {currentFile}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Optionally upload a <strong>.trdx</strong>, <strong>.pdf</strong>, or <strong>.xml</strong> cover sheet
+                design. Leave blank to generate the cover sheet from the text fields above.
+              </p>
+
+              <div
+                className={`border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors ${
+                  uploadFile ? "border-purple-400 bg-purple-50" : "border-gray-200 hover:border-gray-300 bg-gray-50"
+                }`}
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const f = e.dataTransfer.files[0]
+                  if (f) setUploadFile(f)
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".trdx,.pdf,.xml,application/xml,text/xml,application/pdf"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setUploadFile(f) }}
+                />
+                {uploadFile ? (
+                  <div>
+                    <p className="text-xs font-medium text-purple-700">{uploadFile.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{(uploadFile.size / 1024).toFixed(0)} KB · Click to change</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Drop .trdx / .pdf / .xml here or <span className="text-blue-600 font-medium">browse</span>
+                  </p>
+                )}
+              </div>
+
+              {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+
+              {uploadFile && !savedTemplate && (
+                <p className="text-xs text-gray-500">This file will be uploaded when you create the template.</p>
+              )}
+              {uploadFile && savedTemplate && (
+                <button
+                  onClick={uploadDesignFile}
+                  disabled={uploading}
+                  className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {uploading ? "Uploading…" : currentFile ? "Replace File" : "Upload File"}
+                </button>
+              )}
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button onClick={save} disabled={saving} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
-                {saving ? "Saving…" : editing ? "Save Changes" : "Create Template"}
+                {saving ? (uploading ? "Uploading…" : "Saving…") : editing ? "Save Changes" : "Create Template"}
               </button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel
               </button>
             </div>
-
-            {/* Design file upload — shown once template exists */}
-            {savedTemplate && (
-              <div className="border-t border-gray-100 pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Design File</p>
-                  {currentFile && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                      </svg>
-                      {currentFile}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500">
-                  Upload a <strong>.trdx</strong>, <strong>.pdf</strong>, or <strong>.xml</strong> design file.
-                  The file is stored with this template; cover sheet text fields are used for PDF generation.
-                </p>
-
-                <div
-                  className={`border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors ${
-                    uploadFile ? "border-purple-400 bg-purple-50" : "border-gray-200 hover:border-gray-300 bg-gray-50"
-                  }`}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault()
-                    const f = e.dataTransfer.files[0]
-                    if (f) setUploadFile(f)
-                  }}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".trdx,.pdf,.xml,application/xml,text/xml,application/pdf"
-                    className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0]; if (f) setUploadFile(f) }}
-                  />
-                  {uploadFile ? (
-                    <div>
-                      <p className="text-xs font-medium text-purple-700">{uploadFile.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{(uploadFile.size / 1024).toFixed(0)} KB · Click to change</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      Drop .trdx / .pdf / .xml here or <span className="text-blue-600 font-medium">browse</span>
-                    </p>
-                  )}
-                </div>
-
-                {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
-
-                {uploadFile && (
-                  <button
-                    onClick={uploadDesignFile}
-                    disabled={uploading}
-                    className="w-full py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    {uploading ? "Uploading…" : currentFile ? "Replace File" : "Upload File"}
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
