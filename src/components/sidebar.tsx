@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { useState } from "react"
 
-const SIDEBAR_BG = "#5469d4"
+const SIDEBAR_BG = "#456DDE"
 
 interface NavItem {
   href: string
@@ -104,11 +104,11 @@ function SidebarContent({ role, unreadCount, onClose }: SidebarContentProps) {
   return (
     <>
       {/* Logo */}
-      <div className="px-4 py-3.5 bg-white border-b border-gray-200 flex items-center justify-between">
+      <div className="px-4 py-3.5 border-b border-white/10 flex items-center justify-between">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/premier-health-logo.svg" alt="Premier Health" className="h-7 w-auto" />
+        <img src="/premier-health-logo-white.svg" alt="Premier Health" className="h-7 w-auto" />
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden shrink-0 ml-2">
+          <button onClick={onClose} className="text-blue-100 hover:text-white lg:hidden shrink-0 ml-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -219,14 +219,14 @@ export default function Sidebar({ role, unreadCount }: Props) {
       {mobileOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <aside className="relative z-50 w-[250px] flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+          <aside className="relative z-50 w-[288px] flex flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
             <SidebarContent role={role} unreadCount={unreadCount} onClose={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-[250px] shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
+      <aside className="hidden lg:flex w-[288px] shrink-0 flex-col h-full" style={{ backgroundColor: SIDEBAR_BG }}>
         <SidebarContent role={role} unreadCount={unreadCount} />
       </aside>
     </>
