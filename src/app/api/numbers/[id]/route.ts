@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const body = await req.json()
-  const { label, isDefault, deptName, callerIdStatus, coverSheetTemplateId, googleDriveFolder } = body
+  const { label, isDefault, deptName, callerIdStatus, coverSheetTemplateId, googleDriveFolder, forwardToNumber } = body
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
@@ -24,6 +24,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (callerIdStatus !== undefined) set.callerIdStatus = callerIdStatus
   if (coverSheetTemplateId !== undefined) set.coverSheetTemplateId = coverSheetTemplateId || null
   if (googleDriveFolder !== undefined) set.googleDriveFolder = googleDriveFolder?.trim() || null
+  if (forwardToNumber !== undefined) set.forwardToNumber = forwardToNumber?.trim() || null
 
   const [row] = await db
     .update(phoneNumbers)

@@ -1,9 +1,10 @@
 import { db } from "@/lib/db"
-import { faxes, blockedNumbers } from "@/lib/db/schema"
+import { faxes, blockedNumbers, phoneNumbers } from "@/lib/db/schema"
 import { uploadToR2 } from "@/lib/storage"
 import { notifyFaxReceived } from "@/lib/email"
 import { verifyTelnyxWebhook } from "@/lib/telnyx-verify"
 import { uploadToDriveForAll } from "@/lib/google-drive"
+import { sendFax } from "@/lib/telnyx"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
@@ -83,6 +84,39 @@ export async function POST(req: Request) {
 
     // Email notification (fire-and-forget)
     notifyFaxReceived({ fromNumber, toNumber, pages: pageCount, fileUrl: fileUrl ?? null }).catch(() => {})
+
+    // Auto-forward to an outside number if this receiving number is configured for it
+    if (fileUrl) {
+      try {
+        const numberRecord = await db.query.phoneNumbers.findFirst({
+          where: eq(phoneNumbers.number, toNumber),
+          columns: { forwardToNumber: true },
+        })
+        const forwardTo = numberRecord?.forwardToNumber?.trim()
+        if (forwardTo) {
+          const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/telnyx`
+          const [fwd] = await db.insert(faxes).values({
+            direction: "outbound",
+            status: "queued",
+            fromNumber: toNumber,
+            toNumber: forwardTo,
+            subject: `Forwarded fax from ${fromNumber}`,
+            notes: `Auto-forwarded inbound fax originally from ${fromNumber}`,
+            fileUrl,
+            pages: pageCount,
+          }).returning()
+          try {
+            const telnyxFax = await sendFax({ from: toNumber, to: forwardTo, mediaUrl: fileUrl, webhookUrl })
+            await db.update(faxes).set({ telnyxFaxId: telnyxFax.id, status: "sending" }).where(eq(faxes.id, fwd.id))
+          } catch (err) {
+            await db.update(faxes).set({ status: "failed", errorMessage: String(err) }).where(eq(faxes.id, fwd.id))
+            console.error("Inbound fax forward failed:", err)
+          }
+        }
+      } catch (e) {
+        console.error("Inbound fax forward lookup failed:", e)
+      }
+    }
   }
 
   return NextResponse.json({ ok: true })

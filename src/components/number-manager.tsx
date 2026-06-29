@@ -17,6 +17,7 @@ interface NumberWithCounts {
   isDefault: boolean
   coverSheetTemplateId?: string | null
   googleDriveFolder?: string | null
+  forwardToNumber?: string | null
   createdAt: Date
   numUsersAssigned: number
   numUsersCanAccess: number
@@ -80,9 +81,10 @@ export default function NumberManager() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [savingTemplate, setSavingTemplate] = useState(false)
 
-  // Per-number Google Drive folder
+  // Per-number settings: Google Drive folder + inbound-fax forwarding
   const [driveFolder, setDriveFolder] = useState<string>("")
-  const [savingDriveFolder, setSavingDriveFolder] = useState(false)
+  const [forwardTo, setForwardTo] = useState<string>("")
+  const [savingSettings, setSavingSettings] = useState(false)
 
   const [error, setError] = useState("")
 
@@ -105,6 +107,7 @@ export default function NumberManager() {
     setSelectedNumber(number)
     setSelectedTemplateId(number.coverSheetTemplateId ?? "")
     setDriveFolder(number.googleDriveFolder ?? "")
+    setForwardTo(number.forwardToNumber ?? "")
     setDetailTab("users")
     setShowPanel(false)
     setUsersLoading(true)
@@ -127,17 +130,19 @@ export default function NumberManager() {
     }
   }
 
-  async function saveDriveFolder(numberId: string) {
-    setSavingDriveFolder(true)
+  async function saveSettings(numberId: string) {
+    setSavingSettings(true)
+    const driveVal = driveFolder.trim() || null
+    const forwardVal = forwardTo.trim() || null
     await fetch(`/api/numbers/${numberId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ googleDriveFolder: driveFolder.trim() || null }),
+      body: JSON.stringify({ googleDriveFolder: driveVal, forwardToNumber: forwardVal }),
     })
-    setSavingDriveFolder(false)
+    setSavingSettings(false)
     await load()
     if (selectedNumber) {
-      setSelectedNumber((prev) => prev ? { ...prev, googleDriveFolder: driveFolder.trim() || null } : prev)
+      setSelectedNumber((prev) => prev ? { ...prev, googleDriveFolder: driveVal, forwardToNumber: forwardVal } : prev)
     }
   }
 
@@ -540,7 +545,7 @@ export default function NumberManager() {
                     onClick={() => setDetailTab("settings")}
                   >
                     Settings
-                    {selectedNumber.googleDriveFolder && (
+                    {(selectedNumber.googleDriveFolder || selectedNumber.forwardToNumber) && (
                       <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
                     )}
                   </button>
@@ -635,7 +640,22 @@ export default function NumberManager() {
 
                 {/* Settings tab */}
                 {detailTab === "settings" && (
-                  <div className="p-4 space-y-4">
+                  <div className="p-4 space-y-5">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Forward incoming faxes to</label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Faxes received on this number are automatically forwarded to this outside fax number.
+                        Leave blank to disable forwarding.
+                      </p>
+                      <input
+                        type="tel"
+                        value={forwardTo}
+                        onChange={(e) => setForwardTo(e.target.value)}
+                        placeholder="+1 555 123 4567"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Google Drive Folder (outbound)</label>
                       <p className="text-xs text-gray-500 mb-2">
@@ -650,12 +670,13 @@ export default function NumberManager() {
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
                     <button
-                      onClick={() => saveDriveFolder(selectedNumber.id)}
-                      disabled={savingDriveFolder}
+                      onClick={() => saveSettings(selectedNumber.id)}
+                      disabled={savingSettings}
                       className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
                     >
-                      {savingDriveFolder ? "Saving…" : "Save Settings"}
+                      {savingSettings ? "Saving…" : "Save Settings"}
                     </button>
                   </div>
                 )}
