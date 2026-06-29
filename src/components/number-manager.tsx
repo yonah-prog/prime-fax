@@ -11,7 +11,6 @@ interface NumberWithCounts {
   number: string
   label: string | null
   deptName?: string | null
-  callerIdStatus?: string
   telnyxNumberId?: string | null
   active: boolean
   isDefault: boolean
@@ -64,8 +63,8 @@ export default function NumberManager() {
   const [editingDeptId, setEditingDeptId] = useState<string | null>(null)
   const [editDept, setEditDept] = useState("")
 
-  // Caller ID status update
-  const [updatingCallerId, setUpdatingCallerId] = useState<string | null>(null)
+  // Inline cover-sheet template assignment (per row)
+  const [savingCoverId, setSavingCoverId] = useState<string | null>(null)
 
   // User assignment panel
   const [selectedNumber, setSelectedNumber] = useState<NumberWithCounts | null>(null)
@@ -188,15 +187,19 @@ export default function NumberManager() {
     await load()
   }
 
-  async function saveCallerIdStatus(id: string, value: string) {
-    setUpdatingCallerId(id)
+  async function saveCoverInline(id: string, value: string) {
+    setSavingCoverId(id)
     await fetch(`/api/numbers/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callerIdStatus: value }),
+      body: JSON.stringify({ coverSheetTemplateId: value || null }),
     })
-    setUpdatingCallerId(null)
+    setSavingCoverId(null)
     await load()
+    if (selectedNumber?.id === id) {
+      setSelectedTemplateId(value)
+      setSelectedNumber((prev) => prev ? { ...prev, coverSheetTemplateId: value || null } : prev)
+    }
   }
 
   async function removeNumber(id: string, hasTelnyxId: boolean) {
@@ -293,7 +296,7 @@ export default function NumberManager() {
                   <th className="px-5 py-3">Number</th>
                   <th className="px-5 py-3">Label</th>
                   <th className="px-5 py-3">Dept</th>
-                  <th className="px-5 py-3">Caller ID</th>
+                  <th className="px-5 py-3">Cover Sheet</th>
                   <th className="px-5 py-3">Users Assigned</th>
                   <th className="px-5 py-3">Users w/ Access</th>
                   <th className="px-5 py-3">Default</th>
@@ -356,27 +359,21 @@ export default function NumberManager() {
                           </button>
                         )}
                       </td>
-                      {/* Caller ID column */}
+                      {/* Cover Sheet column */}
                       <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center gap-1.5">
                           <select
-                            value={n.callerIdStatus ?? "pending"}
-                            onChange={(e) => saveCallerIdStatus(n.id, e.target.value)}
-                            disabled={updatingCallerId === n.id}
-                            className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                            style={{
-                              color: n.callerIdStatus === "verified"
-                                ? "#16a34a"
-                                : n.callerIdStatus === "failed"
-                                ? "#dc2626"
-                                : "#ca8a04",
-                            }}
+                            value={n.coverSheetTemplateId ?? ""}
+                            onChange={(e) => saveCoverInline(n.id, e.target.value)}
+                            disabled={savingCoverId === n.id || templates.length === 0}
+                            className="text-xs border border-gray-200 rounded px-2 py-1 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 max-w-[160px]"
                           >
-                            <option value="pending" style={{ color: "#ca8a04" }}>Pending</option>
-                            <option value="verified" style={{ color: "#16a34a" }}>Approved &amp; Active</option>
-                            <option value="failed" style={{ color: "#dc2626" }}>Failed</option>
+                            <option value="">{templates.length === 0 ? "No templates" : "— None —"}</option>
+                            {templates.map((t) => (
+                              <option key={t.id} value={t.id}>{t.name}{t.isDefault ? " (default)" : ""}</option>
+                            ))}
                           </select>
-                          {updatingCallerId === n.id && (
+                          {savingCoverId === n.id && (
                             <svg className="w-3.5 h-3.5 text-gray-400 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />

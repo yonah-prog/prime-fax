@@ -15,7 +15,6 @@ export async function GET() {
       number: phoneNumbers.number,
       label: phoneNumbers.label,
       deptName: phoneNumbers.deptName,
-      callerIdStatus: phoneNumbers.callerIdStatus,
       telnyxNumberId: phoneNumbers.telnyxNumberId,
       active: phoneNumbers.active,
       isDefault: phoneNumbers.isDefault,
