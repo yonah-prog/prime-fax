@@ -4,16 +4,27 @@ import { db } from "./db"
 import { users } from "./db/schema"
 import { eq, isNotNull } from "drizzle-orm"
 
+function getRedirectUri() {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
+  if (!base) throw new Error("NEXT_PUBLIC_APP_URL env var is not set — Google OAuth redirect URI cannot be built")
+  return `${base}/api/auth/google/callback`
+}
+
 function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    getRedirectUri()
   )
 }
 
 export function isGoogleConfigured() {
-  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
+  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.NEXT_PUBLIC_APP_URL)
+}
+
+/** The exact redirect URI the OAuth flow uses — register this in Google Cloud Console. */
+export function getRedirectUriForDisplay() {
+  return `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000"}/api/auth/google/callback`
 }
 
 export function getAuthUrl() {
