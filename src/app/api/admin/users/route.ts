@@ -48,9 +48,9 @@ export async function POST(req: Request) {
   audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "user_created", resourceType: "user", resourceId: row.id, meta: { email: row.email, role: userRole } })
 
   // Send welcome email with temp password (fire-and-forget)
-  sendWelcomeEmail({ name: name.trim(), email: email.trim().toLowerCase(), tempPassword }).catch((e) =>
-    console.error("Welcome email failed:", e)
-  )
+  sendWelcomeEmail({ name: name.trim(), email: email.trim().toLowerCase(), tempPassword }).catch((e) => {
+    console.error("Welcome email failed:", JSON.stringify(e?.response?.body ?? e?.message ?? e))
+  })
 
   return NextResponse.json(row, { status: 201 })
 }
