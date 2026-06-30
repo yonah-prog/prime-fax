@@ -89,7 +89,7 @@ export default function SendForm() {
       if (Array.isArray(data)) {
         setNumbers(data)
         const def = data.find((n: PhoneNumber) => n.isDefault) ?? data[0]
-        if (def) setForm((f) => ({ ...f, fromNumberId: def.id }))
+        if (def) setForm((f) => ({ ...f, fromNumberId: def.id, fromName: def.label ?? f.fromName }))
       }
     }).catch(() => {})
     fetch("/api/contacts").then((r) => r.json()).then((data) => { if (Array.isArray(data)) setContacts(data) }).catch(() => {})
@@ -409,7 +409,14 @@ export default function SendForm() {
             </div>
             <div>
               <label className={labelCls}>From Number</label>
-              <select value={form.fromNumberId} onChange={(e) => set("fromNumberId", e.target.value)} className={inputCls}>
+              <select
+                value={form.fromNumberId}
+                onChange={(e) => {
+                  const num = numbers.find((n) => n.id === e.target.value)
+                  setForm((f) => ({ ...f, fromNumberId: e.target.value, fromName: num?.label ?? f.fromName }))
+                }}
+                className={inputCls}
+              >
                 {numbers.length === 0 && <option value="">No numbers configured</option>}
                 {numbers.map((n) => (
                   <option key={n.id} value={n.id}>{formatNumberLabel(n)}</option>
