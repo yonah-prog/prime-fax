@@ -5,6 +5,12 @@ import { requireAdmin } from "@/lib/require-admin"
 import { asc } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { NextResponse } from "next/server"
+import { sendWelcomeEmail } from "@/lib/email"
+import { randomBytes } from "crypto"
+
+function generateTempPassword(): string {
+  return "Temp-" + randomBytes(5).toString("hex")
+}
 
 export async function GET() {
   const { error, session } = await requireAdmin()
@@ -22,13 +28,13 @@ export async function POST(req: Request) {
   if (error) return error
 
   const body = await req.json()
-  const { name, email, password, role } = body
+  const { name, email, role } = body
 
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
   if (!email?.trim()) return NextResponse.json({ error: "Email is required" }, { status: 400 })
-  if (!password || password.length < 8) return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 })
 
-  const passwordHash = await bcrypt.hash(password, 12)
+  const tempPassword = generateTempPassword()
+  const passwordHash = await bcrypt.hash(tempPassword, 12)
   const userRole = role === "admin" ? "admin" : "staff"
 
   const [row] = await db
@@ -40,5 +46,11 @@ export async function POST(req: Request) {
   if (!row) return NextResponse.json({ error: "Email already exists" }, { status: 409 })
 
   audit({ userId: session!.user?.id, userEmail: session!.user?.email, action: "user_created", resourceType: "user", resourceId: row.id, meta: { email: row.email, role: userRole } })
+
+  // Send welcome email with temp password (fire-and-forget)
+  sendWelcomeEmail({ name: name.trim(), email: email.trim().toLowerCase(), tempPassword }).catch((e) =>
+    console.error("Welcome email failed:", e)
+  )
+
   return NextResponse.json(row, { status: 201 })
 }

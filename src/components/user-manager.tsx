@@ -24,7 +24,7 @@ interface Props {
 
 export default function UserManager({ initial, currentUserId, numbers }: Props) {
   const [users, setUsers] = useState<SafeUser[]>(initial)
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "staff" })
+  const [form, setForm] = useState({ name: "", email: "", role: "staff" })
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [resetId, setResetId] = useState<string | null>(null)
@@ -73,8 +73,8 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
   }
 
   async function addUser() {
-    if (!form.name || !form.email || !form.password) {
-      setError("All fields are required.")
+    if (!form.name || !form.email) {
+      setError("Name and email are required.")
       return
     }
     setSaving(true)
@@ -89,7 +89,7 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
     if (!res.ok) { setError("Failed to create user."); return }
     const user: SafeUser = await res.json()
     setUsers([...users, user])
-    setForm({ name: "", email: "", password: "", role: "staff" })
+    setForm({ name: "", email: "", role: "staff" })
   }
 
   async function resetPassword() {
@@ -143,13 +143,6 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <input
-              type="password"
-              placeholder="Password (min 8 chars)"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
             <select
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -160,13 +153,16 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
             </select>
           </div>
           {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
-          <button
-            onClick={addUser}
-            disabled={saving}
-            className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60"
-          >
-            {saving ? "Creating…" : "Create User"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={addUser}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-60"
+            >
+              {saving ? "Creating…" : "Create User"}
+            </button>
+            <span className="text-xs text-gray-400">A temporary password will be emailed to the user.</span>
+          </div>
         </div>
 
         {/* User table */}
