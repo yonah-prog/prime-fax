@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Report Width="7.5in" Name="ProfessionalDarkCoverSheet" xmlns="http://schemas.telerik.com/reporting/2021/1.0">
+  <Items>
+
+    <!-- ─── HEADER ─────────────────────────────────────────────────────── -->
+    <PageHeaderSection Height="1.35in" Name="header">
+      <Items>
+        <!-- Dark navy background bar -->
+        <Shape ShapeType="Rectangle" Left="0in" Top="0in" Width="7.5in" Height="1.0in" Name="headerBg">
+          <Style><BackgroundColor>#1e293b</BackgroundColor></Style>
+        </Shape>
+
+        <!-- Title in white -->
+        <TextBox Value="FAX COVER SHEET" Left="0.15in" Top="0.16in" Width="5.0in" Height="0.5in" Name="title">
+          <Style><Font Name="Arial" Size="22pt" Bold="true"/><Color>#ffffff</Color></Style>
+        </TextBox>
+
+        <!-- Subtitle in muted slate -->
+        <TextBox Value="Confidential Fax Transmission" Left="0.18in" Top="0.70in" Width="4.0in" Height="0.22in" Name="subtitle">
+          <Style><Font Name="Arial" Size="10pt"/><Color>#94a3b8</Color></Style>
+        </TextBox>
+
+        <!-- Date right-aligned in header -->
+        <TextBox Value="=Parameters.date.Value" Left="4.8in" Top="0.36in" Width="2.7in" Height="0.22in" Name="date" TextAlign="Right">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#cbd5e1</Color></Style>
+        </TextBox>
+
+        <!-- Sky-blue accent stripe below header bar -->
+        <Line Left="0in" Top="1.04in" Width="7.5in" Height="0in" Name="accentStripe">
+          <Style><Color>#0ea5e9</Color><LineWidth>3pt</LineWidth></Style>
+        </Line>
+      </Items>
+    </PageHeaderSection>
+
+    <!-- ─── DETAIL ────────────────────────────────────────────────────── -->
+    <DetailSection Height="6.3in" Name="detail">
+      <Items>
+
+        <!-- TO card (left) -->
+        <Shape ShapeType="Rectangle" Left="0in" Top="0.18in" Width="3.55in" Height="1.2in" Name="toCard">
+          <Style><BackgroundColor>#f8fafc</BackgroundColor></Style>
+        </Shape>
+        <TextBox Value="TO" Left="0.2in" Top="0.28in" Width="3.15in" Height="0.18in" Name="toLabel">
+          <Style><Font Name="Arial" Size="8pt" Bold="true"/><Color>#0ea5e9</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.recipientName.Value" Left="0.2in" Top="0.5in" Width="3.15in" Height="0.38in" Name="recipientName">
+          <Style><Font Name="Arial" Size="15pt" Bold="true"/><Color>#1e293b</Color></Style>
+        </TextBox>
+        <TextBox Value='="Fax: " + Parameters.toNumber.Value' Left="0.2in" Top="0.92in" Width="3.15in" Height="0.22in" Name="toNumber">
+          <Style><Font Name="Arial" Size="10pt"/><Color>#475569</Color></Style>
+        </TextBox>
+
+        <!-- FROM card (right) -->
+        <Shape ShapeType="Rectangle" Left="3.7in" Top="0.18in" Width="3.8in" Height="1.2in" Name="fromCard">
+          <Style><BackgroundColor>#f8fafc</BackgroundColor></Style>
+        </Shape>
+        <TextBox Value="FROM" Left="3.9in" Top="0.28in" Width="3.4in" Height="0.18in" Name="fromLabel">
+          <Style><Font Name="Arial" Size="8pt" Bold="true"/><Color>#0ea5e9</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.fromName.Value" Left="3.9in" Top="0.5in" Width="3.4in" Height="0.38in" Name="fromName">
+          <Style><Font Name="Arial" Size="15pt" Bold="true"/><Color>#1e293b</Color></Style>
+        </TextBox>
+        <TextBox Value='="Fax: " + Parameters.fromNumber.Value' Left="3.9in" Top="0.92in" Width="3.4in" Height="0.22in" Name="fromNumber">
+          <Style><Font Name="Arial" Size="10pt"/><Color>#475569</Color></Style>
+        </TextBox>
+
+        <!-- Contact info below FROM card -->
+        <TextBox Value="=Parameters.contactInfo.Value" Left="3.9in" Top="1.46in" Width="3.4in" Height="0.6in" Name="contactInfo">
+          <Style><Font Name="Arial" Size="9.5pt"/><Color>#64748b</Color></Style>
+        </TextBox>
+
+        <!-- Subject -->
+        <Line Left="0in" Top="2.2in" Width="7.5in" Height="0in" Name="subjectRule">
+          <Style><Color>#e2e8f0</Color><LineWidth>0.75pt</LineWidth></Style>
+        </Line>
+        <TextBox Value="RE:" Left="0in" Top="2.34in" Width="0.4in" Height="0.26in" Name="reLabel">
+          <Style><Font Name="Arial" Size="11pt" Bold="true"/><Color>#0ea5e9</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.subject.Value" Left="0.46in" Top="2.34in" Width="7.04in" Height="0.32in" Name="subject">
+          <Style><Font Name="Arial" Size="13pt" Bold="true"/><Color>#1e293b</Color></Style>
+        </TextBox>
+
+        <!-- Message -->
+        <Line Left="0in" Top="2.88in" Width="7.5in" Height="0in" Name="msgRule">
+          <Style><Color>#e2e8f0</Color><LineWidth>0.75pt</LineWidth></Style>
+        </Line>
+        <TextBox Value="MESSAGE" Left="0in" Top="3.02in" Width="7.5in" Height="0.2in" Name="messageLabel">
+          <Style><Font Name="Arial" Size="8pt" Bold="true"/><Color>#64748b</Color></Style>
+        </TextBox>
+        <HtmlTextBox Value="=Parameters.message.Value" Left="0in" Top="3.28in" Width="7.5in" Height="2.2in" Name="message">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#334155</Color></Style>
+        </HtmlTextBox>
+
+      </Items>
+    </DetailSection>
+
+    <!-- ─── FOOTER ────────────────────────────────────────────────────── -->
+    <PageFooterSection Height="0.55in" Name="footer">
+      <Items>
+        <!-- Sky-blue accent stripe at top of footer -->
+        <Line Left="0in" Top="0.02in" Width="7.5in" Height="0in" Name="footerAccent">
+          <Style><Color>#0ea5e9</Color><LineWidth>2pt</LineWidth></Style>
+        </Line>
+        <TextBox Value="CONFIDENTIALITY NOTICE" Left="0in" Top="0.14in" Width="7.5in" Height="0.14in" Name="footerHeading" TextAlign="Center">
+          <Style><Font Name="Arial" Size="7pt" Bold="true"/><Color>#94a3b8</Color></Style>
+        </TextBox>
+        <TextBox Value="This fax contains confidential information intended only for the designated recipient(s). If you received this fax in error, please notify the sender immediately and destroy all copies. Do not disclose, copy, or distribute without authorization. (45 CFR 164.530)" Left="0in" Top="0.30in" Width="7.5in" Height="0.24in" Name="footerText" TextAlign="Center">
+          <Style><Font Name="Arial" Size="7pt"/><Color>#94a3b8</Color></Style>
+        </TextBox>
+      </Items>
+    </PageFooterSection>
+
+  </Items>
+  <PageSettings>
+    <Margins Left="0.5in" Right="0.5in" Top="0.5in" Bottom="0.5in"/>
+    <PaperKind>Letter</PaperKind>
+  </PageSettings>
+  <ReportParameters>
+    <ReportParameter Name="recipientName" Type="String"/>
+    <ReportParameter Name="toNumber" Type="String"/>
+    <ReportParameter Name="fromName" Type="String"/>
+    <ReportParameter Name="fromNumber" Type="String"/>
+    <ReportParameter Name="subject" Type="String"/>
+    <ReportParameter Name="message" Type="String"/>
+    <ReportParameter Name="contactInfo" Type="String"/>
+    <ReportParameter Name="date" Type="String"/>
+  </ReportParameters>
+</Report>
