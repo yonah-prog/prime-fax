@@ -1,32 +1,26 @@
-import nodemailer from "nodemailer"
+import sgMail from "@sendgrid/mail"
 
-function getTransport() {
-  if (!process.env.SMTP_HOST) return null
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT ?? "587"),
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  })
+function getSendGrid() {
+  const key = process.env.SENDGRID_API_KEY
+  if (!key) return null
+  sgMail.setApiKey(key)
+  return sgMail
 }
+
+const FROM = process.env.SMTP_FROM ?? "Prime Fax <mail@primeinfusions.com>"
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? ""
 
 export async function sendWelcomeEmail(user: {
   name: string
   email: string
   tempPassword: string
 }): Promise<void> {
-  const transport = getTransport()
-  if (!transport) return
+  const sg = getSendGrid()
+  if (!sg) return
 
-  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-
-  await transport.sendMail({
-    from,
+  await sg.send({
     to: user.email,
+    from: FROM,
     subject: "Welcome to Prime Fax — Set Your Password",
     html: `
       <div style="font-family:sans-serif;max-width:480px;color:#1a1a1a">
@@ -37,7 +31,7 @@ export async function sendWelcomeEmail(user: {
           <tr><td style="padding:8px 0;color:#666">Temp Password</td><td style="font-family:monospace;font-weight:bold">${user.tempPassword}</td></tr>
         </table>
         <p style="margin-top:16px">
-          <a href="${appUrl}/login" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">
+          <a href="${APP_URL}/login" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">
             Log In &amp; Set Password
           </a>
         </p>
@@ -53,16 +47,13 @@ export async function notifyFaxReceived(fax: {
   pages: number | null
   fileUrl: string | null
 }): Promise<void> {
+  const sg = getSendGrid()
   const to = process.env.NOTIFY_EMAIL
-  const transport = getTransport()
-  if (!to || !transport) return
+  if (!sg || !to) return
 
-  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
-
-  await transport.sendMail({
-    from,
+  await sg.send({
     to,
+    from: FROM,
     subject: `New fax received from ${fax.fromNumber}`,
     html: `
       <div style="font-family:sans-serif;max-width:480px">
@@ -73,7 +64,7 @@ export async function notifyFaxReceived(fax: {
           <tr><td style="padding:6px 0;color:#666">Pages</td><td>${fax.pages ?? "Unknown"}</td></tr>
         </table>
         ${fax.fileUrl ? `<p style="margin-top:16px"><a href="${fax.fileUrl}" style="color:#2563eb">View / Download Fax</a></p>` : ""}
-        ${appUrl ? `<p><a href="${appUrl}/inbox" style="color:#2563eb">Open Inbox</a></p>` : ""}
+        ${APP_URL ? `<p><a href="${APP_URL}/inbox" style="color:#2563eb">Open Inbox</a></p>` : ""}
       </div>
     `,
   })
