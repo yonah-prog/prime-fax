@@ -43,6 +43,7 @@ export const coverSheetTemplates = pgTable("cover_sheet_templates", {
   isDefault: boolean("is_default").default(false).notNull(),
   fileUrl: text("file_url"),
   fileName: text("file_name"),
+  logoUrl: text("logo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })

@@ -76,6 +76,18 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
   }
 
   if (!coverBytes) {
+    // For the generated cover sheet, pull the template's logo (if any) so it
+    // appears at the top of the page.
+    let logoBytes: Uint8Array | null = null
+    if (coverTemplate?.logoUrl) {
+      try {
+        const res = await fetch(coverTemplate.logoUrl)
+        if (res.ok) logoBytes = new Uint8Array(await res.arrayBuffer())
+      } catch {
+        logoBytes = null
+      }
+    }
+
     coverBytes = await generateCoverSheet({
       fromName: resolvedFromName,
       fromNumber: input.fromNumber,
@@ -85,6 +97,7 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
       message: coverSheetMessage,
       contactInfo,
       date: input.date,
+      logoBytes,
     })
   }
 

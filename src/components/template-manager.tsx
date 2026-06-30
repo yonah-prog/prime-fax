@@ -3,13 +3,10 @@
 import { useEffect, useRef, useState } from "react"
 import type { CoverSheetTemplate } from "@/lib/db/schema"
 
-const DEFAULT_MESSAGE =
-  "This fax contains confidential information intended only for the designated recipient(s). If you received this fax in error, please notify the sender immediately and destroy all copies. Do not disclose, copy, or distribute without authorization. (45 CFR 164.530)"
-
 const emptyForm = {
   name: "",
   fromName: "",
-  coverSheetMessage: DEFAULT_MESSAGE,
+  coverSheetMessage: "",
   contactInfo: "",
   isDefault: false,
 }
@@ -43,8 +40,12 @@ export default function TemplateManager() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState("")
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoError, setLogoError] = useState("")
   const [showGuide, setShowGuide] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true)
@@ -60,6 +61,8 @@ export default function TemplateManager() {
     setSavedTemplate(null)
     setUploadFile(null)
     setUploadError("")
+    setLogoFile(null)
+    setLogoError("")
     setForm(emptyForm)
     setError("")
     setShowForm(true)
@@ -70,6 +73,8 @@ export default function TemplateManager() {
     setSavedTemplate(t)
     setUploadFile(null)
     setUploadError("")
+    setLogoFile(null)
+    setLogoError("")
     setForm({
       name: t.name,
       fromName: t.fromName ?? "",
@@ -98,10 +103,14 @@ export default function TemplateManager() {
     }
 
     let saved: CoverSheetTemplate = await res.json()
-    // If a design file was staged (e.g. while creating a new template), upload
-    // it now that we have a template id.
+    // If a design file and/or logo were staged (e.g. while creating a new
+    // template), upload them now that we have a template id.
     if (uploadFile) {
-      const updated = await uploadFileTo(saved.id)
+      const updated = await postUpload(saved.id, uploadFile, "design")
+      if (updated) saved = updated
+    }
+    if (logoFile) {
+      const updated = await postUpload(saved.id, logoFile, "logo")
       if (updated) saved = updated
     }
     setSavedTemplate(saved)
@@ -110,31 +119,47 @@ export default function TemplateManager() {
     setSaving(false)
   }
 
-  // Uploads the currently-staged file to a template; returns the updated record.
-  async function uploadFileTo(templateId: string): Promise<CoverSheetTemplate | null> {
-    if (!uploadFile) return null
-    setUploading(true)
-    setUploadError("")
+  // Uploads a staged file (design or logo) to a template; returns the updated
+  // record. The server routes by file extension.
+  async function postUpload(
+    templateId: string,
+    file: File,
+    kind: "design" | "logo"
+  ): Promise<CoverSheetTemplate | null> {
+    const setBusy = kind === "logo" ? setLogoUploading : setUploading
+    const setErr = kind === "logo" ? setLogoError : setUploadError
+    setBusy(true)
+    setErr("")
 
     const fd = new FormData()
-    fd.append("file", uploadFile)
+    fd.append("file", file)
     fd.append("templateId", templateId)
 
     const res = await fetch("/api/templates/upload", { method: "POST", body: fd })
-    setUploading(false)
+    setBusy(false)
     if (res.ok) {
       const updated: CoverSheetTemplate = await res.json()
-      setUploadFile(null)
+      if (kind === "logo") setLogoFile(null)
+      else setUploadFile(null)
       return updated
     }
     const data = await res.json().catch(() => ({}))
-    setUploadError(data.error ?? "Upload failed")
+    setErr(data.error ?? "Upload failed")
     return null
   }
 
   async function uploadDesignFile() {
     if (!uploadFile || !savedTemplate) return
-    const updated = await uploadFileTo(savedTemplate.id)
+    const updated = await postUpload(savedTemplate.id, uploadFile, "design")
+    if (updated) {
+      setSavedTemplate(updated)
+      await load()
+    }
+  }
+
+  async function uploadLogo() {
+    if (!logoFile || !savedTemplate) return
+    const updated = await postUpload(savedTemplate.id, logoFile, "logo")
     if (updated) {
       setSavedTemplate(updated)
       await load()
@@ -164,6 +189,7 @@ export default function TemplateManager() {
   }
 
   const currentFile = savedTemplate?.fileName ?? editing?.fileName
+  const currentLogo = savedTemplate?.logoUrl ?? editing?.logoUrl
 
   return (
     <div className="flex gap-6">
@@ -317,8 +343,70 @@ export default function TemplateManager() {
 
             {field("name", "Template Name *", "text", "e.g. HIPAA Standard")}
             {field("fromName", "Default From Name", "text", "Your practice or name")}
-            {field("coverSheetMessage", "Cover Sheet Message", "textarea")}
+            {field("coverSheetMessage", "Cover Sheet Message", "textarea", "Leave blank to use the message typed when sending")}
             {field("contactInfo", "Contact Info", "textarea", "Phone, address, email…")}
+
+            <p className="text-xs text-gray-500 -mt-1">
+              The HIPAA confidentiality notice (45 CFR 164.530) is added automatically to the
+              bottom of every generated cover sheet.
+            </p>
+
+            {/* Logo image — drawn at the top of generated cover sheets */}
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Logo</p>
+                {currentLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentLogo} alt="Template logo" className="h-8 max-w-[140px] object-contain" />
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Optionally upload a <strong>.png</strong> or <strong>.jpg</strong> logo. It appears at the
+                top of the cover sheet. Used only when no design file is set.
+              </p>
+
+              <div
+                className={`border-2 border-dashed rounded-lg px-4 py-5 text-center cursor-pointer transition-colors ${
+                  logoFile ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-gray-300 bg-gray-50"
+                }`}
+                onClick={() => logoInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) setLogoFile(f) }}
+              >
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) setLogoFile(f) }}
+                />
+                {logoFile ? (
+                  <div>
+                    <p className="text-xs font-medium text-blue-700">{logoFile.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{(logoFile.size / 1024).toFixed(0)} KB · Click to change</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Drop a .png / .jpg logo here or <span className="text-blue-600 font-medium">browse</span>
+                  </p>
+                )}
+              </div>
+
+              {logoError && <p className="text-xs text-red-600">{logoError}</p>}
+
+              {logoFile && !savedTemplate && (
+                <p className="text-xs text-gray-500">This logo will be uploaded when you create the template.</p>
+              )}
+              {logoFile && savedTemplate && (
+                <button
+                  onClick={uploadLogo}
+                  disabled={logoUploading}
+                  className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  {logoUploading ? "Uploading…" : currentLogo ? "Replace Logo" : "Upload Logo"}
+                </button>
+              )}
+            </div>
 
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
@@ -397,7 +485,7 @@ export default function TemplateManager() {
 
             <div className="flex gap-3 pt-2">
               <button onClick={save} disabled={saving} className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors">
-                {saving ? (uploading ? "Uploading…" : "Saving…") : editing ? "Save Changes" : "Create Template"}
+                {saving ? (uploading || logoUploading ? "Uploading…" : "Saving…") : editing ? "Save Changes" : "Create Template"}
               </button>
               <button onClick={() => setShowForm(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition-colors">
                 Cancel

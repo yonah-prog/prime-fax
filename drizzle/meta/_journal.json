@@ -43,6 +43,13 @@
       "when": 1782766697166,
       "tag": "0005_inbound_drive_folder",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782783026044,
+      "tag": "0006_cover_template_logo",
+      "breakpoints": true
     }
   ]
 }

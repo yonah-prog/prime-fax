@@ -6,7 +6,11 @@ import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
 
-const ALLOWED_EXTENSIONS = ["trdx", "pdf", "xml"]
+// Cover-sheet design files (rendered/used as the page itself).
+const DESIGN_EXTENSIONS = ["trdx", "pdf", "xml"]
+// Logo images embedded at the top of a generated cover sheet. pdf-lib can only
+// embed PNG and JPEG, so those are the supported raster formats.
+const LOGO_EXTENSIONS = ["png", "jpg", "jpeg"]
 
 export async function POST(req: Request) {
   const session = await auth()
@@ -21,9 +25,11 @@ export async function POST(req: Request) {
   }
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+  const isLogo = LOGO_EXTENSIONS.includes(ext)
+  const isDesign = DESIGN_EXTENSIONS.includes(ext)
+  if (!isLogo && !isDesign) {
     return NextResponse.json(
-      { error: `Only ${ALLOWED_EXTENSIONS.join(", ")} files are supported` },
+      { error: `Unsupported file. Design: ${DESIGN_EXTENSIONS.join(", ")}. Logo: ${LOGO_EXTENSIONS.join(", ")}.` },
       { status: 400 }
     )
   }
@@ -32,11 +38,16 @@ export async function POST(req: Request) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_")
   const key = `templates/${randomUUID()}-${safeName}`
   const contentType = file.type || "application/octet-stream"
-  const fileUrl = await uploadToR2(Buffer.from(bytes), key, contentType)
+  const url = await uploadToR2(Buffer.from(bytes), key, contentType)
+
+  // Logo images set logoUrl; design files set fileUrl/fileName.
+  const update = isLogo
+    ? { logoUrl: url, updatedAt: new Date() }
+    : { fileUrl: url, fileName: file.name, updatedAt: new Date() }
 
   const [row] = await db
     .update(coverSheetTemplates)
-    .set({ fileUrl, fileName: file.name, updatedAt: new Date() })
+    .set(update)
     .where(eq(coverSheetTemplates.id, templateId))
     .returning()
 
