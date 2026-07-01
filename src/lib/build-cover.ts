@@ -58,6 +58,19 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
         if (isPdf) {
           coverBytes = designBytes
         } else if (ext === "trdx" || ext === "xml") {
+          // Fetch the template's logo (if any) and pass as a base64 data URL so
+          // TRDX templates with a PictureBox =Parameters.logoImage.Value can render it.
+          let logoImage = ""
+          if (coverTemplate?.logoUrl) {
+            try {
+              const lr = await fetch(coverTemplate.logoUrl)
+              if (lr.ok) {
+                const mime = lr.headers.get("content-type") ?? "image/png"
+                const buf = Buffer.from(await lr.arrayBuffer())
+                logoImage = `data:${mime};base64,${buf.toString("base64")}`
+              }
+            } catch { /* leave empty */ }
+          }
           coverBytes = await renderTrdxToPdf(Buffer.from(designBytes).toString("utf-8"), {
             recipientName: input.recipientName, recipient: input.recipientName, toName: input.recipientName,
             toNumber: input.toNumber, toFax: input.toNumber, faxNumber: input.toNumber,
@@ -67,6 +80,7 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
             message: coverSheetMessage, coverSheetMessage, body: coverSheetMessage,
             contactInfo, contact: contactInfo,
             date: input.date,
+            logoImage,
           })
         }
       }

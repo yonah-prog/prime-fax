@@ -263,9 +263,19 @@ export async function renderTrdxToPdf(xml: string, params: TrdxParams): Promise<
           continue
         }
 
-        // Background fill (boxes, panels, filled textboxes)
+        // Background fill + optional border (boxes, panels)
         const bg = parseColor(prop(node, "BackgroundColor"))
-        if (bg && (type === "PanelBox" || type === "Shape" || type === "TextBox" || type === "HtmlTextBox")) {
+        const borderClr = parseColor(prop(node, "BorderColor"))
+        const bw = toPoints(prop(node, "BorderWidth"), 0) || (borderClr ? 0.5 : 0)
+        if ((bg || borderClr) && (type === "PanelBox" || type === "Shape")) {
+          page.drawRectangle({
+            x: left, y: pageH - top - height, width, height,
+            ...(bg ? { color: bg } : {}),
+            ...(borderClr ? { borderColor: borderClr, borderWidth: bw } : {}),
+          })
+          drewSomething = true
+        }
+        if (bg && (type === "TextBox" || type === "HtmlTextBox")) {
           page.drawRectangle({ x: left, y: pageH - top - height, width, height, color: bg })
           drewSomething = true
         }
@@ -281,13 +291,18 @@ export async function renderTrdxToPdf(xml: string, params: TrdxParams): Promise<
         }
 
         if (type === "PictureBox") {
-          const val = String(prop(node, "Value") ?? "")
+          // Resolve parameter expressions (e.g. =Parameters.logoImage.Value) so
+          // callers can inject base64 data URLs at render time.
+          const val = resolveValue(prop(node, "Value"), params)
+          const mimeFromUrl = val.match(/^data:([^;]+);base64,/)?.[1] ?? ""
           const b64 = val.match(/base64,([A-Za-z0-9+/=]+)/)?.[1] ?? (/^[A-Za-z0-9+/=]+$/.test(val) && val.length > 100 ? val : null)
           if (b64) {
             try {
               const bytes = Buffer.from(b64, "base64")
-              const mime = String(prop(node, "MimeType") ?? "").toLowerCase()
-              const img = mime.includes("png") || !mime ? await doc.embedPng(bytes).catch(() => null) : await doc.embedJpg(bytes).catch(() => null)
+              const mime = (String(prop(node, "MimeType") ?? "") || mimeFromUrl).toLowerCase()
+              const img = mime.includes("jpeg") || mime.includes("jpg")
+                ? await doc.embedJpg(bytes).catch(() => null)
+                : await doc.embedPng(bytes).catch(() => null)
               if (img) { page.drawImage(img, { x: left, y: pageH - top - height, width, height }); drewSomething = true }
             } catch { /* skip image */ }
           }
