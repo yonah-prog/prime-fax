@@ -326,30 +326,33 @@ export default function NumberManager() {
             <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
               {!drive.configured && (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                  <strong>Missing env vars:</strong> Set <code className="bg-amber-100 px-1 rounded">GOOGLE_CLIENT_ID</code>, <code className="bg-amber-100 px-1 rounded">GOOGLE_CLIENT_SECRET</code>, and <code className="bg-amber-100 px-1 rounded">NEXT_PUBLIC_APP_URL</code> in Railway, then redeploy.
+                  <strong>Missing env vars:</strong> Set <code className="bg-amber-100 px-1 rounded">GOOGLE_CLIENT_ID</code> and <code className="bg-amber-100 px-1 rounded">GOOGLE_CLIENT_SECRET</code> in Railway, then redeploy.
                 </p>
               )}
               <div>
                 <p className="text-xs text-gray-500 mb-1">
-                  Add this <strong>Authorized Redirect URI</strong> in{" "}
+                  Add this <strong>exact Authorized Redirect URI</strong> in{" "}
                   <span className="font-medium text-gray-700">Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client</span>:
                 </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 text-xs bg-gray-50 border border-gray-200 rounded px-3 py-1.5 font-mono text-gray-800 select-all">
-                    {(process.env.NEXT_PUBLIC_APP_URL ?? window?.location?.origin ?? "https://your-app.railway.app").replace(/\/$/, "")}
+                    {(typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? "https://your-app.railway.app")).replace(/\/$/, "")}
                     /api/auth/google/callback
                   </code>
                   <button
                     type="button"
                     onClick={() => {
-                      const uri = `${(process.env.NEXT_PUBLIC_APP_URL ?? window?.location?.origin ?? "").replace(/\/$/, "")}/api/auth/google/callback`
-                      navigator.clipboard.writeText(uri).catch(() => {})
+                      const base = typeof window !== "undefined" ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? "")
+                      navigator.clipboard.writeText(`${base.replace(/\/$/, "")}/api/auth/google/callback`).catch(() => {})
                     }}
                     className="text-xs text-blue-600 hover:underline shrink-0"
                   >
                     Copy
                   </button>
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  It must match character-for-character (scheme, host, no trailing slash).
+                </p>
               </div>
             </div>
           )}

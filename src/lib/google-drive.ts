@@ -4,41 +4,56 @@ import { db } from "./db"
 import { users } from "./db/schema"
 import { eq, isNotNull } from "drizzle-orm"
 
-function getRedirectUri() {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
-  if (!base) throw new Error("NEXT_PUBLIC_APP_URL env var is not set — Google OAuth redirect URI cannot be built")
+/**
+ * Build the OAuth redirect URI. Prefer the caller-supplied origin (derived from
+ * the actual incoming request), which always matches the domain the user is on
+ * and sidesteps NEXT_PUBLIC_APP_URL being unset/wrong/trailing-slashed on the
+ * host. Falls back to NEXT_PUBLIC_APP_URL, then localhost, so token refresh
+ * (which has no request context) still works.
+ */
+function buildRedirectUri(origin?: string) {
+  const base = (origin ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "")
   return `${base}/api/auth/google/callback`
 }
 
-function getOAuth2Client() {
+function getOAuth2Client(origin?: string) {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    getRedirectUri()
+    buildRedirectUri(origin)
   )
 }
 
+// Only the OAuth app credentials are strictly required — the redirect URI is now
+// derived per-request, so NEXT_PUBLIC_APP_URL is no longer a hard requirement.
 export function isGoogleConfigured() {
-  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.NEXT_PUBLIC_APP_URL)
+  return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET)
 }
 
 /** The exact redirect URI the OAuth flow uses — register this in Google Cloud Console. */
-export function getRedirectUriForDisplay() {
-  return `${process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000"}/api/auth/google/callback`
+export function getRedirectUriForDisplay(origin?: string) {
+  return buildRedirectUri(origin)
 }
 
-export function getAuthUrl() {
-  const client = getOAuth2Client()
+export function getAuthUrl(origin?: string) {
+  const client = getOAuth2Client(origin)
+  const redirectUri = buildRedirectUri(origin)
+  // Log the exact redirect URI so a mismatch is diagnosable from server logs —
+  // this string must be registered verbatim in Google Cloud Console.
+  console.log("Google OAuth redirect_uri:", redirectUri)
   return client.generateAuthUrl({
     access_type: "offline",
     scope: ["https://www.googleapis.com/auth/drive.file"],
     prompt: "consent",
+    redirect_uri: redirectUri,
   })
 }
 
-export async function exchangeCode(code: string) {
-  const client = getOAuth2Client()
-  const { tokens } = await client.getToken(code)
+export async function exchangeCode(code: string, origin?: string) {
+  const client = getOAuth2Client(origin)
+  // The redirect_uri in the token exchange must match the one used to obtain the
+  // code, so pass the same derived value.
+  const { tokens } = await client.getToken({ code, redirect_uri: buildRedirectUri(origin) })
   return tokens
 }
 
