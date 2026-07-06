@@ -52,10 +52,11 @@ export async function notifyFaxReceived(fax: {
   toNumber: string
   pages: number | null
   fileUrl: string | null
+  overrideTo?: string
 }): Promise<void> {
   const key = process.env.SENDGRID_API_KEY
   const from = process.env.SMTP_FROM ?? "Prime Fax <noreply@mailpremierhealth.com>"
-  const to = process.env.NOTIFY_EMAIL
+  const to = fax.overrideTo || process.env.NOTIFY_EMAIL
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
 
   if (!key || !to) return

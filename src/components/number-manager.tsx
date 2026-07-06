@@ -17,6 +17,7 @@ interface NumberWithCounts {
   coverSheetTemplateId?: string | null
   inboundDriveFolder?: string | null
   forwardToNumber?: string | null
+  notifyEmail?: string | null
   createdAt: Date
   numUsersAssigned: number
   numUsersCanAccess: number
@@ -80,9 +81,10 @@ export default function NumberManager() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
   const [savingTemplate, setSavingTemplate] = useState(false)
 
-  // Per-number settings: inbound Google Drive folder + forwarding
+  // Per-number settings: inbound Google Drive folder + forwarding + email
   const [inboundFolder, setInboundFolder] = useState<string>("")
   const [forwardTo, setForwardTo] = useState<string>("")
+  const [notifyEmail, setNotifyEmail] = useState<string>("")
   const [savingSettings, setSavingSettings] = useState(false)
 
   // Account-level Google Drive connection (admin)
@@ -124,6 +126,7 @@ export default function NumberManager() {
     setSelectedTemplateId(number.coverSheetTemplateId ?? "")
     setInboundFolder(number.inboundDriveFolder ?? "")
     setForwardTo(number.forwardToNumber ?? "")
+    setNotifyEmail(number.notifyEmail ?? "")
     setDetailTab("users")
     setShowPanel(false)
     setUsersLoading(true)
@@ -150,15 +153,16 @@ export default function NumberManager() {
     setSavingSettings(true)
     const inboundVal = inboundFolder.trim() || null
     const forwardVal = forwardTo.trim() || null
+    const notifyVal = notifyEmail.trim() || null
     await fetch(`/api/numbers/${numberId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inboundDriveFolder: inboundVal, forwardToNumber: forwardVal }),
+      body: JSON.stringify({ inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal }),
     })
     setSavingSettings(false)
     await load()
     if (selectedNumber) {
-      setSelectedNumber((prev) => prev ? { ...prev, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal } : prev)
+      setSelectedNumber((prev) => prev ? { ...prev, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal } : prev)
     }
   }
 
@@ -627,7 +631,7 @@ export default function NumberManager() {
                     onClick={() => setDetailTab("settings")}
                   >
                     Settings
-                    {(selectedNumber.inboundDriveFolder || selectedNumber.forwardToNumber) && (
+                    {(selectedNumber.inboundDriveFolder || selectedNumber.forwardToNumber || selectedNumber.notifyEmail) && (
                       <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-blue-500 align-middle" />
                     )}
                   </button>
@@ -723,6 +727,21 @@ export default function NumberManager() {
                 {/* Settings tab */}
                 {detailTab === "settings" && (
                   <div className="p-4 space-y-5">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Notify email</label>
+                      <p className="text-xs text-gray-500 mb-2">
+                        Inbound faxes to this number trigger an email to this address. Overrides the global notification setting.
+                        Leave blank to use the system default.
+                      </p>
+                      <input
+                        type="email"
+                        value={notifyEmail}
+                        onChange={(e) => setNotifyEmail(e.target.value)}
+                        placeholder="e.g. inbox@yourpractice.com"
+                        className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1.5">Forward incoming faxes to</label>
                       <p className="text-xs text-gray-500 mb-2">

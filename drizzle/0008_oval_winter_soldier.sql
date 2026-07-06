@@ -1,0 +1,1 @@
+ALTER TABLE "phone_numbers" ADD COLUMN "notify_email" text;

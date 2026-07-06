@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const body = await req.json()
-  const { label, isDefault, deptName, coverSheetTemplateId, inboundDriveFolder, forwardToNumber } = body
+  const { label, isDefault, deptName, coverSheetTemplateId, inboundDriveFolder, forwardToNumber, notifyEmail } = body
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
@@ -24,6 +24,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (coverSheetTemplateId !== undefined) set.coverSheetTemplateId = coverSheetTemplateId || null
   if (inboundDriveFolder !== undefined) set.inboundDriveFolder = inboundDriveFolder?.trim() || null
   if (forwardToNumber !== undefined) set.forwardToNumber = forwardToNumber?.trim() || null
+  if (notifyEmail !== undefined) set.notifyEmail = notifyEmail?.trim() || null
 
   const [row] = await db
     .update(phoneNumbers)

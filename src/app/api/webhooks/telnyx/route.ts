@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     // Per-line config for this receiving number (inbound Drive folder + forwarding)
     const numberRecord = await db.query.phoneNumbers.findFirst({
       where: eq(phoneNumbers.number, toNumber),
-      columns: { inboundDriveFolder: true, forwardToNumber: true },
+      columns: { inboundDriveFolder: true, forwardToNumber: true, notifyEmail: true },
     })
 
     let fileUrl = payload.media_url as string | undefined
@@ -89,8 +89,9 @@ export async function POST(req: Request) {
       pages: pageCount,
     }).onConflictDoNothing({ target: faxes.telnyxFaxId })
 
-    // Email notification (fire-and-forget)
-    notifyFaxReceived({ fromNumber, toNumber, pages: pageCount, fileUrl: fileUrl ?? null }).catch(() => {})
+    // Email notification — per-number address takes priority, falls back to global NOTIFY_EMAIL
+    const notifyTarget = numberRecord?.notifyEmail?.trim() || undefined
+    notifyFaxReceived({ fromNumber, toNumber, pages: pageCount, fileUrl: fileUrl ?? null, overrideTo: notifyTarget }).catch(() => {})
 
     // Auto-forward to an outside number if this receiving number is configured for it
     if (fileUrl) {

@@ -61,6 +61,7 @@ export const phoneNumbers = pgTable("phone_numbers", {
   googleDriveFolder: text("google_drive_folder"),
   inboundDriveFolder: text("inbound_drive_folder"),
   forwardToNumber: text("forward_to_number"),
+  notifyEmail: text("notify_email"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
