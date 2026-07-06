@@ -4,6 +4,7 @@ import { db } from "@/lib/db"
 import { users } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { type NextRequest, NextResponse } from "next/server"
+import { originFromRequest } from "@/lib/request-origin"
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const tokens = await exchangeCode(code)
+    const tokens = await exchangeCode(code, originFromRequest(req))
     await db.update(users).set({
       googleAccessToken: tokens.access_token ?? null,
       googleRefreshToken: tokens.refresh_token ?? null,

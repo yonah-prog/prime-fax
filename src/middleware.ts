@@ -28,10 +28,11 @@ export default auth((req) => {
 })
 
 export const config = {
-  // Exclude auth/webhook/health APIs, Next internals, and static asset files
-  // (by extension) so public assets like cover-sheet .trdx/.pdf and the logo
-  // aren't redirected to /login.
+  // Exclude auth/webhook/health APIs, the EHR machine-to-machine routes
+  // (which validate Medplum JWTs themselves), Next internals, and static
+  // asset files (by extension) so public assets like cover-sheet .trdx/.pdf
+  // and the logo aren't redirected to /login.
   matcher: [
-    "/((?!api/auth|api/webhooks|api/health|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp|woff2?|trdx|pdf|xml|txt)$).*)",
+    "/((?!api/auth|api/webhooks|api/health|api/ehr|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|ico|webp|woff2?|trdx|pdf|xml|txt)$).*)",
   ],
 }

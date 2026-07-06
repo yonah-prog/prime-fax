@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Report Width="7.5in" Name="ClassicPremierHealth" xmlns="http://schemas.telerik.com/reporting/2021/1.0">
+  <Items>
+    <PageHeaderSection Height="2.0in" Name="header">
+      <Items>
+        <!-- Date stamp -->
+        <TextBox Value="=Parameters.date.Value" Left="0in" Top="0.02in" Width="7.5in" Height="0.2in" Name="date">
+          <Style><Font Name="Courier New" Size="8.5pt"/><Color>#666666</Color></Style>
+        </TextBox>
+        <!-- Premier Health four-circle mark -->
+        <Shape ShapeType="Ellipse" Left="0.20in" Top="0.42in" Width="0.30in" Height="0.30in" Name="dot1"><Style><BackgroundColor>#c9a8e8</BackgroundColor></Style></Shape>
+        <Shape ShapeType="Ellipse" Left="0.00in" Top="0.73in" Width="0.34in" Height="0.34in" Name="dot2"><Style><BackgroundColor>#3f1457</BackgroundColor></Style></Shape>
+        <Shape ShapeType="Ellipse" Left="0.50in" Top="0.73in" Width="0.34in" Height="0.34in" Name="dot3"><Style><BackgroundColor>#9c34d4</BackgroundColor></Style></Shape>
+        <Shape ShapeType="Ellipse" Left="0.22in" Top="1.05in" Width="0.30in" Height="0.30in" Name="dot4"><Style><BackgroundColor>#7a3a93</BackgroundColor></Style></Shape>
+        <!-- Wordmark -->
+        <TextBox Value="PREMIER HEALTH" Left="1.05in" Top="0.65in" Width="6.20in" Height="0.45in" Name="wordmark">
+          <Style><Font Name="Arial" Size="24pt" Bold="true"/><Color>#3f1457</Color></Style>
+        </TextBox>
+      </Items>
+    </PageHeaderSection>
+    <DetailSection Height="7.8in" Name="detail">
+      <Items>
+        <!-- TO section -->
+        <TextBox Value="TO:" Left="0in" Top="0.08in" Width="7.5in" Height="0.36in" Name="toLabel">
+          <Style><Font Name="Arial" Size="16pt" Bold="true"/><Color>#000000</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.recipientName.Value" Left="0.30in" Top="0.48in" Width="7.20in" Height="0.28in" Name="recipientName">
+          <Style><Font Name="Arial" Size="12pt"/><Color>#111111</Color></Style>
+        </TextBox>
+        <TextBox Value='= "    Fax Number:  " + Parameters.toNumber.Value' Left="0in" Top="0.80in" Width="5.0in" Height="0.25in" Name="toFax">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#222222</Color></Style>
+        </TextBox>
+        <!-- Separator -->
+        <Line Left="0in" Top="1.18in" Width="7.5in" Height="0in" Name="rule1">
+          <Style><Color>#d1d5db</Color><LineWidth>0.5pt</LineWidth></Style>
+        </Line>
+        <!-- FROM section -->
+        <TextBox Value="FROM:" Left="0in" Top="1.28in" Width="7.5in" Height="0.36in" Name="fromLabel">
+          <Style><Font Name="Arial" Size="16pt" Bold="true"/><Color>#000000</Color></Style>
+        </TextBox>
+        <TextBox Value='= "    Name:  " + Parameters.fromName.Value' Left="0in" Top="1.68in" Width="7.5in" Height="0.25in" Name="fromName">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#222222</Color></Style>
+        </TextBox>
+        <TextBox Value='= "    Fax Number:  " + Parameters.fromNumber.Value' Left="0in" Top="1.96in" Width="7.5in" Height="0.25in" Name="fromFax">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#222222</Color></Style>
+        </TextBox>
+        <!-- Separator -->
+        <Line Left="0in" Top="2.33in" Width="7.5in" Height="0in" Name="rule2">
+          <Style><Color>#d1d5db</Color><LineWidth>0.5pt</LineWidth></Style>
+        </Line>
+        <!-- Subject box -->
+        <Shape Left="0in" Top="2.43in" Width="7.5in" Height="0.42in" Name="subjectBox">
+          <Style><BorderColor>#888888</BorderColor><BorderWidth>0.5pt</BorderWidth></Style>
+        </Shape>
+        <TextBox Value="Subject:" Left="0.12in" Top="2.50in" Width="0.95in" Height="0.28in" Name="subjectLabel">
+          <Style><Font Name="Arial" Size="11pt" Bold="true"/><Color>#000000</Color></Style>
+        </TextBox>
+        <TextBox Value="=Parameters.subject.Value" Left="1.08in" Top="2.50in" Width="6.32in" Height="0.28in" Name="subjectValue">
+          <Style><Font Name="Arial" Size="11pt"/><Color>#111111</Color></Style>
+        </TextBox>
+        <!-- Message box -->
+        <Shape Left="0in" Top="2.95in" Width="7.5in" Height="4.65in" Name="msgBox">
+          <Style><BorderColor>#888888</BorderColor><BorderWidth>0.5pt</BorderWidth></Style>
+        </Shape>
+        <TextBox Value="Message:" Left="0.12in" Top="3.03in" Width="0.95in" Height="0.25in" Name="msgLabel">
+          <Style><Font Name="Arial" Size="11pt" Bold="true"/><Color>#000000</Color></Style>
+        </TextBox>
+        <HtmlTextBox Value="=Parameters.message.Value" Left="0.12in" Top="3.33in" Width="7.26in" Height="4.15in" Name="msgValue">
+          <Style><Font Name="Arial" Size="10pt"/><Color>#222222</Color></Style>
+        </HtmlTextBox>
+      </Items>
+    </DetailSection>
+  </Items>
+  <PageSettings>
+    <Margins Left="0.5in" Right="0.5in" Top="0.5in" Bottom="0.5in"/>
+    <PaperKind>Letter</PaperKind>
+  </PageSettings>
+  <ReportParameters>
+    <ReportParameter Name="recipientName" Type="String"/>
+    <ReportParameter Name="toNumber" Type="String"/>
+    <ReportParameter Name="fromName" Type="String"/>
+    <ReportParameter Name="fromNumber" Type="String"/>
+    <ReportParameter Name="subject" Type="String"/>
+    <ReportParameter Name="message" Type="String"/>
+    <ReportParameter Name="contactInfo" Type="String"/>
+    <ReportParameter Name="date" Type="String"/>
+  </ReportParameters>
+</Report>
