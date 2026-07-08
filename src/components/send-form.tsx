@@ -732,7 +732,7 @@ export default function SendForm() {
           {previewError ? (
             <div className="rounded bg-amber-50 border border-amber-200 px-4 py-4 text-sm text-amber-800">
               {previewError}
-              {!form.hasCoverSheet && !file && (
+              {!form.hasCoverSheet && files.length === 0 && (
                 <span> Enable the cover sheet or attach a PDF on the{" "}
                   <button type="button" onClick={() => setActiveTab("compose")} className="text-blue-600 hover:underline">Compose</button> tab.
                 </span>
