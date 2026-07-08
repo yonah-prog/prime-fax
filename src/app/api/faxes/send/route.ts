@@ -5,6 +5,7 @@ import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { prependCoverSheet } from "@/lib/cover-sheet"
 import { buildCoverSheet } from "@/lib/build-cover"
+import { mergePdfs } from "@/lib/merge-pdfs"
 import { audit } from "@/lib/audit"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -15,7 +16,9 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const form = await req.formData()
-  const file = form.get("file") as File | null
+
+  // Collect all uploaded files (sent as repeated "files" field)
+  const uploadedFiles = form.getAll("files") as File[]
 
   // Support comma-separated or JSON array of recipients for broadcast
   const toRaw = form.get("to") as string | null
@@ -44,10 +47,16 @@ export async function POST(req: Request) {
   let fileName = "fax.pdf"
   let contentType = "application/pdf"
 
-  if (file) {
-    fileBytes = new Uint8Array(await file.arrayBuffer())
-    fileName = file.name
-    contentType = file.type || "application/pdf"
+  if (uploadedFiles.length === 1) {
+    fileBytes = new Uint8Array(await uploadedFiles[0].arrayBuffer())
+    fileName = uploadedFiles[0].name
+    contentType = uploadedFiles[0].type || "application/pdf"
+  } else if (uploadedFiles.length > 1) {
+    // Merge all uploaded PDFs into one
+    const parts = await Promise.all(uploadedFiles.map((f) => f.arrayBuffer().then((b) => new Uint8Array(b))))
+    fileBytes = await mergePdfs(parts)
+    fileName = "merged.pdf"
+    contentType = "application/pdf"
   }
 
   // Build PDF (cover + doc) once — reused for all recipients in broadcast

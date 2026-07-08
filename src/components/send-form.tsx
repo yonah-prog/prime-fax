@@ -64,7 +64,7 @@ export default function SendForm() {
 
   const [recipients, setRecipients] = useState<Array<{ name: string; number: string }>>([{ name: "", number: "" }])
   const [form, setForm] = useState(defaultForm)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
   const [status, setStatus] = useState<SubmitStatus>("idle")
   const [errorMsg, setErrorMsg] = useState("")
   const [templates, setTemplates] = useState<CoverSheetTemplate[]>([])
@@ -152,15 +152,16 @@ export default function SendForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.fromNumberId, templates, numbers])
 
-  const onDrop = useCallback((accepted: File[]) => { if (accepted[0]) setFile(accepted[0]) }, [])
+  const onDrop = useCallback((accepted: File[]) => {
+    if (accepted.length > 0) setFiles((prev) => [...prev, ...accepted])
+  }, [])
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { "application/pdf": [".pdf"], "image/tiff": [".tif", ".tiff"], "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] },
-    maxFiles: 1,
   })
 
   function resetForm() {
-    setFile(null)
+    setFiles([])
     setForm(defaultForm)
     setRecipients([{ name: "", number: "" }])
     setStatus("idle")
@@ -211,7 +212,7 @@ export default function SendForm() {
       const fromNumber = selectedNumber?.number ?? ""
 
       const data = new FormData()
-      if (file) data.append("file", file)
+      files.forEach((f) => data.append("files", f))
       data.append("to", validRecipients[0]?.number ?? "")
       data.append("from", fromNumber)
       data.append("fromName", form.fromName)
@@ -233,7 +234,7 @@ export default function SendForm() {
       setPreviewLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipients, numbers, form, file])
+  }, [recipients, numbers, form, files])
 
   useEffect(() => { if (activeTab !== "preview") return; generatePreview() }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl) }, [previewUrl])
@@ -250,7 +251,7 @@ export default function SendForm() {
     const fromNumber = selectedNumber?.number ?? process.env.NEXT_PUBLIC_FROM_NUMBER ?? ""
 
     const data = new FormData()
-    if (file) data.append("file", file)
+    files.forEach((f) => data.append("files", f))
     data.append("to", validRecipients.map((r) => r.number).join(","))
     data.append("from", fromNumber)
     data.append("fromName", form.fromName)
@@ -507,28 +508,47 @@ export default function SendForm() {
           {/* ─ File upload ─ */}
           <div>
             <label className={labelCls}>
-              Attachment <span className="text-gray-400 font-normal">PDF, TIFF, PNG, JPG · max 50 MB</span>
+              Attachments <span className="text-gray-400 font-normal">PDF, TIFF, PNG, JPG · multiple files OK · merged in order</span>
             </label>
+
+            {/* File list */}
+            {files.length > 0 && (
+              <ul className="mb-2 space-y-1">
+                {files.map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded px-3 py-2 text-sm">
+                    <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span className="flex-1 truncate font-medium text-green-800">{f.name}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{(f.size / 1024).toFixed(0)} KB</span>
+                    <button
+                      type="button"
+                      onClick={() => setFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-gray-400 hover:text-red-500 shrink-0"
+                    >✕</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
             <div
               {...getRootProps()}
-              className={`border-2 border-dashed rounded px-6 py-7 text-center cursor-pointer transition-colors ${
-                isDragActive ? "border-blue-400 bg-blue-50" : file ? "border-green-400 bg-green-50" : "border-gray-300 hover:border-gray-400 bg-white"
+              className={`border-2 border-dashed rounded px-6 py-5 text-center cursor-pointer transition-colors ${
+                isDragActive ? "border-blue-400 bg-blue-50" : files.length > 0 ? "border-gray-300 hover:border-gray-400 bg-gray-50" : "border-gray-300 hover:border-gray-400 bg-white"
               }`}
             >
               <input {...getInputProps()} />
-              {file ? (
-                <div>
-                  <p className="text-sm font-medium text-green-700">{file.name}</p>
-                  <p className="text-xs text-gray-500 mt-1">{(file.size / 1024).toFixed(0)} KB · Click to replace</p>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2 text-gray-500">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                  </svg>
-                  <span className="text-sm">{isDragActive ? "Drop it here" : <><span>Drop file here or </span><strong className="text-gray-700">browse</strong></>}</span>
-                </div>
-              )}
+              <div className="flex items-center justify-center gap-2 text-gray-500">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <span className="text-sm">
+                  {isDragActive ? "Drop files here" : files.length > 0
+                    ? <><span>Add more files or </span><strong className="text-gray-700">browse</strong></>
+                    : <><span>Drop files here or </span><strong className="text-gray-700">browse</strong></>
+                  }
+                </span>
+              </div>
             </div>
           </div>
 
@@ -694,7 +714,7 @@ export default function SendForm() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Exactly what will be transmitted — cover sheet{file ? " + attached PDF" : ""}.
+              Exactly what will be transmitted — cover sheet{files.length > 0 ? ` + ${files.length} attached file${files.length > 1 ? "s" : ""}` : ""}.
             </p>
             <button
               type="button"
