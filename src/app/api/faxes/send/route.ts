@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     contactInfo = cover.contactInfo
 
     fileBytes = fileBytes ? await prependCoverSheet(cover.coverBytes, fileBytes) : cover.coverBytes
-    if (!file) fileName = "cover-sheet.pdf"
+    if (uploadedFiles.length === 0) fileName = "cover-sheet.pdf"
     contentType = "application/pdf"
   }
 
