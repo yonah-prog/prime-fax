@@ -157,7 +157,6 @@ export default function SendForm() {
     onDrop,
     accept: { "application/pdf": [".pdf"], "image/tiff": [".tif", ".tiff"], "image/png": [".png"], "image/jpeg": [".jpg", ".jpeg"] },
     maxFiles: 1,
-    maxSize: 50 * 1024 * 1024,
   })
 
   function resetForm() {
