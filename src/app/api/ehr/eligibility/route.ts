@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       },
       encounter: {
         serviceTypeCodes: body.serviceTypeCodes ?? ["30"],
-        dateRange: { startDate: body.dateOfService },
+        dateOfService: body.dateOfService,
       },
     }),
   })
