@@ -41,7 +41,6 @@ export async function POST(req: Request) {
         firstName: body.firstName,
         lastName: body.lastName,
         dateOfBirth: body.dateOfBirth,
-        gender: "U",
       },
       encounter: {
         serviceTypeCodes: body.serviceTypeCodes ?? ["30"],
