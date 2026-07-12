@@ -4,7 +4,7 @@ export async function validateMedplumToken(authHeader: string): Promise<boolean>
   const token = authHeader.replace(/^Bearer\s+/i, '').trim()
   if (!token) return false
   try {
-    const res = await fetch(`${MEDPLUM_BASE}/auth/userinfo`, {
+    const res = await fetch(`${MEDPLUM_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(5000),
     })
