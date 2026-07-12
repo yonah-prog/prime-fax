@@ -22,13 +22,22 @@ export async function POST(req: Request) {
       units: number
       fee: number
       modifier?: string
+      modifiers?: string[]
       icd10s: string[]
+      ndc?: string
     }>
     totalCharge: number
     authNumber?: string
+    referringNpi?: string
     renderingNpi?: string
     renderingName?: string
     filingCode?: string
+  }
+
+  // ICD-10 code → 1-indexed pointer letter (A, B, C…) for serviceLine.diagnosis.
+  const dxPointerFor = (icd: string): string => {
+    const idx = body.diagnoses.findIndex((d) => d.replace('.', '') === icd.replace('.', ''))
+    return idx >= 0 ? String.fromCharCode(65 + idx) : 'A'
   }
 
   const controlNumber = (Math.floor(100000000 + Math.random() * 900000000)).toString()
@@ -54,21 +63,39 @@ export async function POST(req: Request) {
       claimFrequencyCode: "1",
       signatureIndicator: "Y",
       planParticipationCode: "A",
-      serviceLines: body.lines.map((l, i) => ({
-        serviceLineNumber: String(i + 1),
-        procedureCode: l.cpt,
-        ...(l.modifier ? { procedureModifiers: [l.modifier] } : {}),
-        diagnosis: l.icd10s,
-        lineItemChargeAmount: (l.fee * l.units).toFixed(2),
-        serviceUnitCount: String(l.units),
-        serviceDate: body.dateOfService,
-      })),
+      serviceLines: body.lines.map((l, i) => {
+        // Prefer the explicit modifiers array; fall back to the legacy single.
+        const mods = (l.modifiers && l.modifiers.length ? l.modifiers : (l.modifier ? [l.modifier] : []))
+          .filter(Boolean)
+          .slice(0, 4)
+        // CMS-1500 Box 24E: pointer letters, not raw codes.
+        const pointers = (l.icd10s ?? []).map(dxPointerFor)
+        return {
+          serviceLineNumber: String(i + 1),
+          procedureCode: l.cpt,
+          ...(mods.length ? { procedureModifiers: mods } : {}),
+          ...(pointers.length ? { compositeDiagnosisCodePointers: { diagnosisCodePointers: pointers } } : {}),
+          lineItemChargeAmount: (l.fee * l.units).toFixed(2),
+          serviceUnitCount: String(l.units),
+          serviceDate: body.dateOfService,
+          // Drug lines (J-codes) carry an NDC for pricing/rebate.
+          ...(l.ndc ? {
+            drugIdentification: {
+              serviceIdQualifier: "N4",
+              nationalDrugCode: l.ndc.replace(/\D/g, ''),
+              nationalDrugUnitCount: String(l.units),
+              measurementUnitCode: "UN",
+            },
+          } : {}),
+        }
+      }),
       healthCareCodeInformation: body.diagnoses.map((c, i) => ({
         diagnosisTypeCode: i === 0 ? "ABK" : "ABF",
         diagnosisCode: c.replace(".", ""),
       })),
     },
     ...(body.authNumber ? { referralNumber: body.authNumber } : {}),
+    ...(body.referringNpi ? { referringProvider: { npi: body.referringNpi } } : {}),
     ...(body.renderingNpi ? { renderingProvider: { npi: body.renderingNpi, organizationName: body.renderingName ?? '' } } : {}),
   }
 
