@@ -76,8 +76,7 @@ export async function notifyFaxReceived(fax: {
             <tr><td style="padding:6px 0;color:#666">To</td><td style="font-family:monospace">${fax.toNumber}</td></tr>
             <tr><td style="padding:6px 0;color:#666">Pages</td><td>${fax.pages ?? "Unknown"}</td></tr>
           </table>
-          ${fax.fileUrl ? `<p style="margin-top:16px"><a href="${fax.fileUrl}" style="color:#2563eb">View / Download Fax</a></p>` : ""}
-          ${appUrl ? `<p><a href="${appUrl}/inbox" style="color:#2563eb">Open Inbox</a></p>` : ""}
+          ${appUrl ? `<p style="margin-top:16px"><a href="${appUrl}/inbox" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">View Fax in Inbox</a></p>` : ""}
         </div>
       `,
     })
