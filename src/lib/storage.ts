@@ -28,15 +28,22 @@ export async function uploadToR2(
 
 export async function downloadFromR2(fileUrl: string): Promise<Buffer | null> {
   try {
-    const publicUrl = process.env.R2_PUBLIC_URL ?? ""
-    const key = publicUrl ? fileUrl.replace(publicUrl + "/", "") : fileUrl
+    const publicUrl = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "")
+    const key = publicUrl && fileUrl.startsWith(publicUrl) ? fileUrl.slice(publicUrl.length + 1) : fileUrl
+    console.log("[r2] downloadFromR2 fileUrl:", fileUrl)
+    console.log("[r2] publicUrl:", publicUrl)
+    console.log("[r2] resolved key:", key)
+    console.log("[r2] bucket:", process.env.R2_BUCKET_NAME)
     const res = await r2.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }))
     const chunks: Uint8Array[] = []
     for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
       chunks.push(chunk)
     }
-    return Buffer.concat(chunks)
-  } catch {
+    const buf = Buffer.concat(chunks)
+    console.log("[r2] downloaded bytes:", buf.length)
+    return buf
+  } catch (e) {
+    console.error("[r2] downloadFromR2 failed:", e)
     return null
   }
 }
