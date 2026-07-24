@@ -14,15 +14,19 @@ export async function POST(req: Request) {
 
   const r2Base = process.env.R2_PUBLIC_URL ?? ""
 
-  // Prefer a fax stored in our own R2 (not an expired external presigned URL)
-  const fax = await db.query.faxes.findFirst({
-    where: (f, { and }) => and(
-      eq(f.direction, "inbound"),
-      isNotNull(f.fileUrl),
-      r2Base ? like(f.fileUrl, `${r2Base}%`) : isNotNull(f.fileUrl),
-    ),
-    orderBy: [desc(faxes.createdAt)],
-  })
+  // Prefer a fax stored in our own R2; fall back to any inbound with a fileUrl
+  const fax = r2Base
+    ? await db.query.faxes.findFirst({
+        where: (f, { and }) => and(eq(f.direction, "inbound"), isNotNull(f.fileUrl), like(f.fileUrl, `${r2Base}%`)),
+        orderBy: [desc(faxes.createdAt)],
+      }) ?? await db.query.faxes.findFirst({
+        where: (f, { and }) => and(eq(f.direction, "inbound"), isNotNull(f.fileUrl)),
+        orderBy: [desc(faxes.createdAt)],
+      })
+    : await db.query.faxes.findFirst({
+        where: (f, { and }) => and(eq(f.direction, "inbound"), isNotNull(f.fileUrl)),
+        orderBy: [desc(faxes.createdAt)],
+      })
 
   if (!fax) return NextResponse.json({ error: "No received faxes with a file found" }, { status: 404 })
 
