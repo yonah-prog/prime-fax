@@ -63,6 +63,25 @@ export async function notifyFaxReceived(fax: {
 
   sgMail.setApiKey(key)
 
+  // Try to fetch and attach the PDF
+  let attachment: { content: string; filename: string; type: string; disposition: string } | undefined
+  if (fax.fileUrl) {
+    try {
+      const res = await fetch(fax.fileUrl)
+      if (res.ok) {
+        const buf = await res.arrayBuffer()
+        attachment = {
+          content: Buffer.from(buf).toString("base64"),
+          filename: `fax-from-${fax.fromNumber.replace(/\D/g, "")}.pdf`,
+          type: "application/pdf",
+          disposition: "attachment",
+        }
+      }
+    } catch {
+      // Attachment failed — send without it
+    }
+  }
+
   try {
     await sgMail.send({
       to,
@@ -76,9 +95,11 @@ export async function notifyFaxReceived(fax: {
             <tr><td style="padding:6px 0;color:#666">To</td><td style="font-family:monospace">${fax.toNumber}</td></tr>
             <tr><td style="padding:6px 0;color:#666">Pages</td><td>${fax.pages ?? "Unknown"}</td></tr>
           </table>
-          ${appUrl ? `<p style="margin-top:16px"><a href="${appUrl}/inbox" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">View Fax in Inbox</a></p>` : ""}
+          ${attachment ? "<p style=\"margin-top:12px;color:#555;font-size:13px\">The fax is attached to this email as a PDF.</p>" : ""}
+          ${appUrl ? `<p style="margin-top:12px"><a href="${appUrl}/inbox" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open in Prime Fax</a></p>` : ""}
         </div>
       `,
+      ...(attachment ? { attachments: [attachment] } : {}),
     })
   } catch (e: unknown) {
     const err = e as { response?: { body?: unknown }; message?: string }
