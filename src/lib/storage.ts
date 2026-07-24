@@ -28,26 +28,32 @@ export async function uploadToR2(
 
 export async function downloadFaxFile(fileUrl: string): Promise<Buffer | null> {
   const publicUrl = (process.env.R2_PUBLIC_URL ?? "").replace(/\/$/, "")
+  console.log("[storage] downloadFaxFile url:", fileUrl, "| publicUrl:", publicUrl)
 
   // Our own R2 file — fetch via SDK using credentials
   if (publicUrl && fileUrl.startsWith(publicUrl)) {
     try {
       const key = fileUrl.slice(publicUrl.length + 1)
+      console.log("[storage] R2 key:", key)
       const res = await r2.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }))
       const chunks: Uint8Array[] = []
       for await (const chunk of res.Body as AsyncIterable<Uint8Array>) chunks.push(chunk)
-      return Buffer.concat(chunks)
+      const buf = Buffer.concat(chunks)
+      console.log("[storage] R2 downloaded bytes:", buf.length)
+      return buf
     } catch (e) {
-      console.error("[storage] R2 download failed:", e)
-      return null
+      console.error("[storage] R2 SDK fetch failed, falling back to HTTP:", e)
     }
   }
 
-  // External URL (Telnyx presigned, HumbleFax S3, etc.) — fetch directly via HTTP
+  // External URL or R2 SDK fallback — fetch directly via HTTP
   try {
+    console.log("[storage] HTTP fetch:", fileUrl)
     const res = await fetch(fileUrl)
-    if (!res.ok) { console.error("[storage] HTTP fetch failed:", res.status, fileUrl); return null }
-    return Buffer.from(await res.arrayBuffer())
+    if (!res.ok) { console.error("[storage] HTTP fetch failed:", res.status); return null }
+    const buf = Buffer.from(await res.arrayBuffer())
+    console.log("[storage] HTTP downloaded bytes:", buf.length)
+    return buf
   } catch (e) {
     console.error("[storage] HTTP fetch error:", e)
     return null
