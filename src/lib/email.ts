@@ -1,4 +1,5 @@
 import sgMail from "@sendgrid/mail"
+import { downloadFromR2 } from "@/lib/storage"
 
 export async function sendWelcomeEmail(user: {
   name: string
@@ -63,22 +64,17 @@ export async function notifyFaxReceived(fax: {
 
   sgMail.setApiKey(key)
 
-  // Try to fetch and attach the PDF
+  // Fetch from R2 directly using SDK credentials (bucket is not public)
   let attachment: { content: string; filename: string; type: string; disposition: string } | undefined
   if (fax.fileUrl) {
-    try {
-      const res = await fetch(fax.fileUrl)
-      if (res.ok) {
-        const buf = await res.arrayBuffer()
-        attachment = {
-          content: Buffer.from(buf).toString("base64"),
-          filename: `fax-from-${fax.fromNumber.replace(/\D/g, "")}.pdf`,
-          type: "application/pdf",
-          disposition: "attachment",
-        }
+    const buf = await downloadFromR2(fax.fileUrl)
+    if (buf) {
+      attachment = {
+        content: buf.toString("base64"),
+        filename: `fax-from-${fax.fromNumber.replace(/\D/g, "")}.pdf`,
+        type: "application/pdf",
+        disposition: "attachment",
       }
-    } catch {
-      // Attachment failed — send without it
     }
   }
 

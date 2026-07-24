@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
 
 const r2 = new S3Client({
   region: "auto",
@@ -24,4 +24,19 @@ export async function uploadToR2(
   )
 
   return `${process.env.R2_PUBLIC_URL}/${key}`
+}
+
+export async function downloadFromR2(fileUrl: string): Promise<Buffer | null> {
+  try {
+    const publicUrl = process.env.R2_PUBLIC_URL ?? ""
+    const key = publicUrl ? fileUrl.replace(publicUrl + "/", "") : fileUrl
+    const res = await r2.send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME!, Key: key }))
+    const chunks: Uint8Array[] = []
+    for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk)
+    }
+    return Buffer.concat(chunks)
+  } catch {
+    return null
+  }
 }
