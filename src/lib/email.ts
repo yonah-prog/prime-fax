@@ -1,5 +1,5 @@
 import sgMail from "@sendgrid/mail"
-import { downloadFromR2 } from "@/lib/storage"
+import { downloadFaxFile } from "@/lib/storage"
 
 export async function sendWelcomeEmail(user: {
   name: string
@@ -67,7 +67,7 @@ export async function notifyFaxReceived(fax: {
   // Fetch from R2 directly using SDK credentials (bucket is not public)
   let attachment: { content: string; filename: string; type: string; disposition: string } | undefined
   if (fax.fileUrl) {
-    const buf = await downloadFromR2(fax.fileUrl)
+    const buf = await downloadFaxFile(fax.fileUrl)
     if (buf) {
       attachment = {
         content: buf.toString("base64"),
