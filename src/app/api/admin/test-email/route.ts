@@ -2,7 +2,7 @@ import { db } from "@/lib/db"
 import { faxes } from "@/lib/db/schema"
 import { notifyFaxReceived } from "@/lib/email"
 import { requireAdmin } from "@/lib/require-admin"
-import { eq, desc, isNotNull } from "drizzle-orm"
+import { eq, desc, isNotNull, like } from "drizzle-orm"
 import { NextResponse } from "next/server"
 
 export async function POST(req: Request) {
@@ -12,8 +12,15 @@ export async function POST(req: Request) {
   const { email } = await req.json()
   if (!email) return NextResponse.json({ error: "email required" }, { status: 400 })
 
+  const r2Base = process.env.R2_PUBLIC_URL ?? ""
+
+  // Prefer a fax stored in our own R2 (not an expired external presigned URL)
   const fax = await db.query.faxes.findFirst({
-    where: (f, { and }) => and(eq(f.direction, "inbound"), isNotNull(f.fileUrl)),
+    where: (f, { and }) => and(
+      eq(f.direction, "inbound"),
+      isNotNull(f.fileUrl),
+      r2Base ? like(f.fileUrl, `${r2Base}%`) : isNotNull(f.fileUrl),
+    ),
     orderBy: [desc(faxes.createdAt)],
   })
 
