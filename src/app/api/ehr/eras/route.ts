@@ -22,7 +22,18 @@ export async function GET(req: Request) {
   )
 
   if (!stediRes.ok) {
-    return NextResponse.json({ remittances: [] })
+    const errText = await stediRes.text().catch(() => '')
+    console.error('[STEDI remittances error]', stediRes.status, errText)
+    // An empty list here reads as "nothing to work" — a biller would move on
+    // and never chase real denials. Fail loudly instead.
+    return NextResponse.json(
+      {
+        status: 'unavailable',
+        remittances: [],
+        notes: 'Remittances could not be retrieved — the clearinghouse did not respond. This is not a statement that no remittances exist.',
+      },
+      { status: 503 }
+    )
   }
 
   const data = await stediRes.json() as { remittances?: unknown[] }

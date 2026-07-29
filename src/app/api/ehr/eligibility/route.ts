@@ -52,11 +52,18 @@ export async function POST(req: Request) {
   if (!stediRes.ok) {
     const errText = await stediRes.text()
     console.error('[STEDI eligibility error]', stediRes.status, errText)
-    return NextResponse.json({
-      active: false,
-      benefits: [],
-      notes: 'Eligibility check unavailable. Please try again or contact support.',
-    })
+    // Never answer "active: false" on a failed lookup — that is indistinguishable
+    // from a genuine "patient has no coverage" and has been read that way.
+    // Return an explicit unknown so the caller can say the check did not run.
+    return NextResponse.json(
+      {
+        status: 'unavailable',
+        active: null,
+        benefits: [],
+        notes: 'Eligibility could not be verified — the clearinghouse did not respond. This is not a statement about the patient’s coverage.',
+      },
+      { status: 503 }
+    )
   }
 
   const data = await stediRes.json() as Record<string, unknown>
