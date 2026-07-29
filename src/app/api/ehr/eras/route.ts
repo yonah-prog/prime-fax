@@ -46,9 +46,11 @@ async function pollEraTransactionIds(sinceIso: string, cap: number): Promise<Pol
   const found: PolledTransaction[] = []
   let pageToken: string | undefined
   for (let page = 0; page < 20 && found.length < cap; page++) {
+    // Stedi rejects both together: startDateTime opens the feed, pageToken
+    // continues it.
     const url = new URL(POLLING_URL)
-    url.searchParams.set("startDateTime", sinceIso)
     if (pageToken) url.searchParams.set("pageToken", pageToken)
+    else url.searchParams.set("startDateTime", sinceIso)
     const res = await fetch(url, { headers: { Authorization: KEY() } })
     if (!res.ok) throw new Error(`polling ${res.status}: ${(await res.text()).slice(0, 200)}`)
     const body = (await res.json()) as { items?: PolledTransaction[]; nextPageToken?: string }
