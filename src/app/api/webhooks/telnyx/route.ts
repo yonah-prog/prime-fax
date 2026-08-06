@@ -62,10 +62,18 @@ export async function POST(req: Request) {
 
     // Re-host fax media on R2 for permanent storage; also mirror to all connected
     // Google Drives, into this line's inbound folder.
+    //
+    // IMPORTANT: Telnyx's media_url is a pre-signed AWS S3 link (auth is carried
+    // in the query string). Do NOT add an Authorization header — S3 rejects any
+    // request that presents two auth mechanisms with HTTP 400, which previously
+    // caused this fetch to fail, the re-host to be skipped, and the temporary
+    // (soon-to-expire) Telnyx URL to be stored instead. Only api.telnyx.com URLs
+    // would need the Bearer token.
     if (fileUrl) {
       try {
+        const needsBearer = /(^|\.)telnyx\.com/i.test(new URL(fileUrl).hostname)
         const res = await fetch(fileUrl, {
-          headers: { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` },
+          headers: needsBearer ? { Authorization: `Bearer ${process.env.TELNYX_API_KEY}` } : {},
         })
         if (res.ok) {
           const buffer = Buffer.from(await res.arrayBuffer())
@@ -73,9 +81,12 @@ export async function POST(req: Request) {
           fileUrl = await uploadToR2(buffer, `inbound/${randomUUID()}.pdf`, contentType)
           const driveFileName = `Inbound-${fromNumber}-${new Date().toISOString().slice(0, 10)}.pdf`
           uploadToDriveForAll(buffer, driveFileName, contentType, numberRecord?.inboundDriveFolder).catch((e) => console.error("Drive upload (inbound) failed:", e))
+        } else {
+          console.error(`Inbound media re-host skipped: fetch ${res.status} for ${new URL(fileUrl).host}`)
         }
-      } catch {
-        // Keep Telnyx URL as fallback
+      } catch (e) {
+        // Keep Telnyx URL as fallback, but log so this isn't silently missed.
+        console.error("Inbound media re-host failed:", e instanceof Error ? e.message : e)
       }
     }
 
