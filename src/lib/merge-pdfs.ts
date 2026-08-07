@@ -9,3 +9,13 @@ export async function mergePdfs(parts: Uint8Array[]): Promise<Uint8Array> {
   }
   return merged.save()
 }
+
+/** Page count of a PDF; returns 0 if the bytes aren't a readable PDF (e.g. an image). */
+export async function countPdfPages(bytes: Uint8Array): Promise<number> {
+  try {
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true })
+    return doc.getPageCount()
+  } catch {
+    return 0
+  }
+}

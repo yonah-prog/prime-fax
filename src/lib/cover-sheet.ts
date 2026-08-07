@@ -11,6 +11,8 @@ export interface CoverSheetOptions {
   date: string
   /** Optional logo image bytes (PNG or JPEG) drawn at the top of the page. */
   logoBytes?: Uint8Array | null
+  /** Total pages of the fax INCLUDING this cover sheet. Rendered as "# of Pages". */
+  pages?: number | null
 }
 
 // The HIPAA confidentiality notice printed on every generated cover sheet.
@@ -89,14 +91,18 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
     }
   }
 
-  // ── Title + date ──
+  // ── Title + date + page count ──
   page.drawText("FAX COVER SHEET", { x: margin, y: y - 20, font: bold, size: 22, color: BLUE })
-  const dateStr = `Date: ${opts.date}`
-  page.drawText(toWinAnsi(dateStr), {
-    x: width - margin - font.widthOfTextAtSize(dateStr, 10),
-    y: y - 14, font, size: 10, color: GRAY,
-  })
-  y -= 32
+  const drawRight = (text: string, ty: number, size: number, color = GRAY, f = font) => {
+    const t = toWinAnsi(text)
+    page.drawText(t, { x: width - margin - f.widthOfTextAtSize(t, size), y: ty, font: f, size, color })
+  }
+  drawRight(`Date: ${opts.date}`, y - 12, 10)
+  if (opts.pages && opts.pages > 0) {
+    drawRight(`# of Pages: ${opts.pages}`, y - 27, 10, rgb(0.1, 0.1, 0.1), bold)
+    drawRight("(including cover sheet)", y - 38, 7.5, GRAY)
+  }
+  y -= 44
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 2, color: BLUE })
   y -= 22
 
@@ -115,26 +121,38 @@ export async function generateCoverSheet(opts: CoverSheetOptions): Promise<Uint8
     for (const l of opts.contactInfo.split("\n").slice(0, 4)) line(l.trim(), 10)
   }
 
-  // ── Subject ──
-  if (opts.subject) {
-    gap(16)
-    line("SUBJECT", 9, false, GRAY)
-    line(opts.subject, 13, true)
-  }
+  // Pre-compute the confidentiality box so the message box can stop above it.
+  const noticeLines = wrapText(CONFIDENTIALITY_NOTICE, font, 8, contentWidth - 24)
+  const noticeHeight = 24 + noticeLines.length * 11
+  const confTop = 46 + noticeHeight
 
-  // ── Message ──
-  if (opts.message) {
-    gap(20)
-    page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) })
-    gap(12)
-    line("MESSAGE", 9, false, GRAY)
-    gap(6)
-    for (const l of wrapText(opts.message, font, 11, contentWidth)) line(l, 11)
+  const BORDER = rgb(0.53, 0.53, 0.53)
+
+  // ── Subject box ──
+  gap(18)
+  const subjBoxH = 30
+  const subjTop = y
+  page.drawRectangle({ x: margin, y: subjTop - subjBoxH, width: contentWidth, height: subjBoxH, borderColor: BORDER, borderWidth: 0.75 })
+  page.drawText("Subject:", { x: margin + 10, y: subjTop - 19, font: bold, size: 11 })
+  const subjLabelW = bold.widthOfTextAtSize("Subject:  ", 11)
+  const subjText = wrapText(opts.subject || "", font, 11, contentWidth - subjLabelW - 20)[0] ?? ""
+  page.drawText(subjText, { x: margin + 10 + subjLabelW, y: subjTop - 19, font, size: 11 })
+  y = subjTop - subjBoxH - 12
+
+  // ── Message box — fills the space down to just above the confidentiality box ──
+  const msgTop = y
+  const msgBottom = confTop + 14
+  const msgBoxH = Math.max(80, msgTop - msgBottom)
+  page.drawRectangle({ x: margin, y: msgTop - msgBoxH, width: contentWidth, height: msgBoxH, borderColor: BORDER, borderWidth: 0.75 })
+  page.drawText("Message:", { x: margin + 10, y: msgTop - 19, font: bold, size: 11 })
+  let my = msgTop - 36
+  for (const l of wrapText(opts.message || "", font, 11, contentWidth - 20)) {
+    if (my < msgTop - msgBoxH + 10) break
+    page.drawText(l, { x: margin + 10, y: my, font, size: 11, color: rgb(0.15, 0.15, 0.15) })
+    my -= 15
   }
 
   // ── Confidentiality notice — fixed block anchored at the bottom ──
-  const noticeLines = wrapText(CONFIDENTIALITY_NOTICE, font, 8, contentWidth - 24)
-  const noticeHeight = 24 + noticeLines.length * 11
   const boxTop = 46 + noticeHeight
   page.drawRectangle({
     x: margin, y: 46, width: contentWidth, height: noticeHeight,

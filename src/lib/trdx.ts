@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, PDFFont, RGB } from "pdf-lib"
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type RGB } from "pdf-lib"
 import { XMLParser } from "fast-xml-parser"
 
 /**

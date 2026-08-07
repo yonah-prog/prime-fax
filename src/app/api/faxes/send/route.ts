@@ -5,7 +5,7 @@ import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { prependCoverSheet } from "@/lib/cover-sheet"
 import { buildCoverSheet } from "@/lib/build-cover"
-import { mergePdfs } from "@/lib/merge-pdfs"
+import { mergePdfs, countPdfPages } from "@/lib/merge-pdfs"
 import { toE164 } from "@/lib/phone"
 import { audit } from "@/lib/audit"
 import { eq } from "drizzle-orm"
@@ -63,9 +63,12 @@ export async function POST(req: Request) {
   // Build PDF (cover + doc) once — reused for all recipients in broadcast
   if (hasCoverSheet) {
     const coverDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    // "# of Pages" = the single cover sheet page + the attachment's pages.
+    const attachmentPages = fileBytes ? (await countPdfPages(fileBytes)) || 1 : 0
     const cover = await buildCoverSheet({
       coverSheetTemplateId, fromName, fromNumber, recipientName,
       toNumber: recipients[0], subject, coverSheetMessage, contactInfo, date: coverDate,
+      pageCount: 1 + attachmentPages,
     })
     resolvedFromName = cover.resolvedFromName
     coverSheetMessage = cover.coverSheetMessage

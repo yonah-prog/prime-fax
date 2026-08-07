@@ -14,6 +14,8 @@ export interface CoverInput {
   coverSheetMessage: string
   contactInfo: string
   date: string
+  /** Total pages of the fax INCLUDING the cover sheet, rendered as "# of Pages". */
+  pageCount?: number | null
 }
 
 export interface CoverResult {
@@ -80,6 +82,8 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
             message: coverSheetMessage, coverSheetMessage, body: coverSheetMessage,
             contactInfo, contact: contactInfo,
             date: input.date,
+            pages: input.pageCount ? String(input.pageCount) : "",
+            pageCount: input.pageCount ? String(input.pageCount) : "",
             logoImage,
           })
         }
@@ -111,6 +115,7 @@ export async function buildCoverSheet(input: CoverInput): Promise<CoverResult> {
       message: coverSheetMessage,
       contactInfo,
       date: input.date,
+      pages: input.pageCount ?? null,
       logoBytes,
     })
   }

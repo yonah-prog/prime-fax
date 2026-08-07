@@ -1,7 +1,7 @@
 import { auth } from "@/auth"
 import { buildCoverSheet } from "@/lib/build-cover"
 import { prependCoverSheet } from "@/lib/cover-sheet"
-import { mergePdfs } from "@/lib/merge-pdfs"
+import { mergePdfs, countPdfPages } from "@/lib/merge-pdfs"
 import { NextResponse } from "next/server"
 
 // Renders the actual cover sheet (and merges an attached PDF) exactly as the
@@ -37,9 +37,11 @@ export async function POST(req: Request) {
   let pdfBytes: Uint8Array | null = null
   try {
     if (hasCoverSheet) {
+      const attachmentPages = fileBytes ? (await countPdfPages(fileBytes)) || 1 : 0
       const cover = await buildCoverSheet({
         coverSheetTemplateId, fromName, fromNumber, recipientName,
         toNumber, subject, coverSheetMessage, contactInfo, date: coverDate,
+        pageCount: 1 + attachmentPages,
       })
       pdfBytes = fileBytes ? await prependCoverSheet(cover.coverBytes, fileBytes) : cover.coverBytes
     } else if (fileBytes) {

@@ -27,8 +27,15 @@
         <TextBox Value="=Parameters.recipientName.Value" Left="0.30in" Top="0.48in" Width="7.20in" Height="0.28in" Name="recipientName">
           <Style><Font Name="Arial" Size="12pt"/><Color>#111111</Color></Style>
         </TextBox>
-        <TextBox Value='= "    Fax Number:  " + Parameters.toNumber.Value' Left="0in" Top="0.80in" Width="5.0in" Height="0.25in" Name="toFax">
+        <TextBox Value='= "    Fax Number:  " + Parameters.toNumber.Value' Left="0in" Top="0.80in" Width="4.4in" Height="0.25in" Name="toFax">
           <Style><Font Name="Arial" Size="11pt"/><Color>#222222</Color></Style>
+        </TextBox>
+        <!-- Page count — auto, includes cover sheet -->
+        <TextBox Value='= "# of Pages:  " + Parameters.pages.Value' Left="4.5in" Top="0.80in" Width="3.0in" Height="0.25in" Name="pageCount" TextAlign="Right">
+          <Style><Font Name="Arial" Size="11pt" Bold="true"/><Color>#000000</Color></Style>
+        </TextBox>
+        <TextBox Value="(including cover sheet)" Left="4.5in" Top="1.02in" Width="3.0in" Height="0.18in" Name="pageCountNote" TextAlign="Right">
+          <Style><Font Name="Arial" Size="7.5pt"/><Color>#666666</Color></Style>
         </TextBox>
         <!-- Separator -->
         <Line Left="0in" Top="1.18in" Width="7.5in" Height="0in" Name="rule1">
@@ -59,15 +66,25 @@
           <Style><Font Name="Arial" Size="11pt"/><Color>#111111</Color></Style>
         </TextBox>
         <!-- Message box -->
-        <Shape Left="0in" Top="2.95in" Width="7.5in" Height="4.65in" Name="msgBox">
+        <Shape Left="0in" Top="2.95in" Width="7.5in" Height="3.95in" Name="msgBox">
           <Style><BorderColor>#888888</BorderColor><BorderWidth>0.5pt</BorderWidth></Style>
         </Shape>
         <TextBox Value="Message:" Left="0.12in" Top="3.03in" Width="0.95in" Height="0.25in" Name="msgLabel">
           <Style><Font Name="Arial" Size="11pt" Bold="true"/><Color>#000000</Color></Style>
         </TextBox>
-        <HtmlTextBox Value="=Parameters.message.Value" Left="0.12in" Top="3.33in" Width="7.26in" Height="4.15in" Name="msgValue">
+        <HtmlTextBox Value="=Parameters.message.Value" Left="0.12in" Top="3.33in" Width="7.26in" Height="3.45in" Name="msgValue">
           <Style><Font Name="Arial" Size="10pt"/><Color>#222222</Color></Style>
         </HtmlTextBox>
+        <!-- Confidentiality disclosure -->
+        <Line Left="0in" Top="7.05in" Width="7.5in" Height="0in" Name="footRule">
+          <Style><Color>#d1d5db</Color><LineWidth>0.5pt</LineWidth></Style>
+        </Line>
+        <TextBox Value="CONFIDENTIALITY NOTICE" Left="0in" Top="7.12in" Width="7.5in" Height="0.14in" Name="footHeading" TextAlign="Center">
+          <Style><Font Name="Arial" Size="7pt" Bold="true"/><Color>#888888</Color></Style>
+        </TextBox>
+        <TextBox Value="This fax contains confidential information intended only for the designated recipient(s). If you received this fax in error, please notify the sender immediately and destroy all copies. Do not disclose, copy, or distribute without authorization. (45 CFR 164.530)" Left="0in" Top="7.28in" Width="7.5in" Height="0.4in" Name="footText" TextAlign="Center">
+          <Style><Font Name="Arial" Size="7pt"/><Color>#888888</Color></Style>
+        </TextBox>
       </Items>
     </DetailSection>
   </Items>
@@ -84,5 +101,6 @@
     <ReportParameter Name="message" Type="String"/>
     <ReportParameter Name="contactInfo" Type="String"/>
     <ReportParameter Name="date" Type="String"/>
+    <ReportParameter Name="pages" Type="String"/>
   </ReportParameters>
 </Report>
