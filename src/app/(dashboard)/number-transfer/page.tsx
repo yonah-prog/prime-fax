@@ -61,7 +61,7 @@ export default function NumberTransferPage() {
       </div>
 
       <p className="text-sm text-gray-600 mb-6">
-        Transfer (port) an existing fax number from your current carrier to CareTend Fax. The process is free and your number stays the same throughout.
+        Transfer (port) an existing fax number from your current carrier to Premier Fax. The process is free and your number stays the same throughout.
       </p>
 
       {/* Steps */}
@@ -123,7 +123,7 @@ export default function NumberTransferPage() {
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800">
-            By submitting this form you authorize CareTend Fax to act as your agent to port this number on your behalf.
+            By submitting this form you authorize Premier Fax to act as your agent to port this number on your behalf.
           </div>
 
           <button

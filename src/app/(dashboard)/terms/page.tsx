@@ -2,15 +2,15 @@ export default function TermsPage() {
   const sections = [
     {
       title: "1. Acceptance of Terms",
-      body: "By accessing or using CareTend Fax you agree to be bound by these Terms of Service. If you do not agree, do not use the service.",
+      body: "By accessing or using Premier Fax you agree to be bound by these Terms of Service. If you do not agree, do not use the service.",
     },
     {
       title: "2. HIPAA Compliance",
-      body: "CareTend Fax is designed as a HIPAA-compliant fax platform. Users are responsible for ensuring their use of the service complies with all applicable federal and state privacy laws, including HIPAA. We sign Business Associate Agreements (BAAs) upon request.",
+      body: "Premier Fax is designed as a HIPAA-compliant fax platform. Users are responsible for ensuring their use of the service complies with all applicable federal and state privacy laws, including HIPAA. We sign Business Associate Agreements (BAAs) upon request.",
     },
     {
       title: "3. Acceptable Use",
-      body: "You may not use CareTend Fax to send unsolicited faxes (fax spam), transmit illegal content, or violate any applicable laws. Accounts found to be sending spam will be suspended immediately.",
+      body: "You may not use Premier Fax to send unsolicited faxes (fax spam), transmit illegal content, or violate any applicable laws. Accounts found to be sending spam will be suspended immediately.",
     },
     {
       title: "4. Data Retention",
@@ -26,7 +26,7 @@ export default function TermsPage() {
     },
     {
       title: "7. Limitation of Liability",
-      body: "CareTend Fax shall not be liable for any indirect, incidental, or consequential damages arising from use of the service. Our total liability shall not exceed the fees paid in the prior 3 months.",
+      body: "Premier Fax shall not be liable for any indirect, incidental, or consequential damages arising from use of the service. Our total liability shall not exceed the fees paid in the prior 3 months.",
     },
     {
       title: "8. Changes to Terms",

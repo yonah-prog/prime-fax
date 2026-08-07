@@ -5,7 +5,7 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CareTend Fax",
+  title: "Premier Fax",
   description: "Internal fax portal",
 };
 

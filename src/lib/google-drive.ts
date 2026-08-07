@@ -102,7 +102,7 @@ export async function uploadToDriveForUser(
 
   const drive = google.drive({ version: "v3", auth: client })
   // Per-number folder override takes precedence over the user's default folder.
-  const folderName = folderOverride?.trim() || user.googleDriveFolder?.trim() || "CareTend Fax"
+  const folderName = folderOverride?.trim() || user.googleDriveFolder?.trim() || "Premier Fax"
   const folderId = await getOrCreateFolder(drive, folderName)
 
   await drive.files.create({
