@@ -7,7 +7,7 @@ export async function sendWelcomeEmail(user: {
   tempPassword: string
 }): Promise<void> {
   const key = process.env.SENDGRID_API_KEY
-  const from = process.env.SMTP_FROM ?? "Prime Fax <noreply@mailpremierhealth.com>"
+  const from = process.env.SMTP_FROM ?? "Premier Fax <noreply@mailpremierhealth.com>"
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
 
   console.log("[email] sendWelcomeEmail called for", user.email, "| key present:", !!key, "| from:", from)
@@ -23,10 +23,10 @@ export async function sendWelcomeEmail(user: {
     const res = await sgMail.send({
       to: user.email,
       from,
-      subject: "Welcome to Prime Fax — Set Your Password",
+      subject: "Welcome to Premier Fax — Set Your Password",
       html: `
         <div style="font-family:sans-serif;max-width:480px;color:#1a1a1a">
-          <h2 style="color:#1e3a6e">Welcome to Prime Fax, ${user.name}!</h2>
+          <h2 style="color:#1e3a6e">Welcome to Premier Fax, ${user.name}!</h2>
           <p>Your account has been created. Use the temporary credentials below to log in, then change your password right away.</p>
           <table style="border-collapse:collapse;width:100%;margin:16px 0">
             <tr><td style="padding:8px 0;color:#666;width:140px">Email</td><td style="font-family:monospace">${user.email}</td></tr>
@@ -56,7 +56,7 @@ export async function notifyFaxReceived(fax: {
   overrideTo?: string
 }): Promise<void> {
   const key = process.env.SENDGRID_API_KEY
-  const from = process.env.SMTP_FROM ?? "Prime Fax <noreply@mailpremierhealth.com>"
+  const from = process.env.SMTP_FROM ?? "Premier Fax <noreply@mailpremierhealth.com>"
   const to = fax.overrideTo || process.env.NOTIFY_EMAIL
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ""
 
@@ -92,7 +92,7 @@ export async function notifyFaxReceived(fax: {
             <tr><td style="padding:6px 0;color:#666">Pages</td><td>${fax.pages ?? "Unknown"}</td></tr>
           </table>
           ${attachment ? "<p style=\"margin-top:12px;color:#555;font-size:13px\">The fax is attached to this email as a PDF.</p>" : ""}
-          ${appUrl ? `<p style="margin-top:12px"><a href="${appUrl}/inbox" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open in Prime Fax</a></p>` : ""}
+          ${appUrl ? `<p style="margin-top:12px"><a href="${appUrl}/inbox" style="background:#1e3a6e;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open in Premier Fax</a></p>` : ""}
         </div>
       `,
       ...(attachment ? { attachments: [attachment] } : {}),
