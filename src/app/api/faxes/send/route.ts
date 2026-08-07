@@ -6,6 +6,7 @@ import { uploadToR2 } from "@/lib/storage"
 import { prependCoverSheet } from "@/lib/cover-sheet"
 import { buildCoverSheet } from "@/lib/build-cover"
 import { mergePdfs } from "@/lib/merge-pdfs"
+import { toE164 } from "@/lib/phone"
 import { audit } from "@/lib/audit"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
@@ -88,13 +89,23 @@ export async function POST(req: Request) {
   const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/telnyx`
   const results: { id: string; toNumber: string; status: string }[] = []
 
-  for (const toNumber of recipients) {
+  for (const rawTo of recipients) {
+    // Telnyx requires E.164; normalize (adds +1 to 10-digit US numbers, etc.).
+    // If it can't be normalized, record a clear failure instead of sending a
+    // malformed number and getting a raw Telnyx 422.
+    const normalizedTo = toE164(rawTo)
+    const invalidTo = !normalizedTo
+    const toNumber = normalizedTo ?? rawTo
+
     const [fax] = await db
       .insert(faxes)
       .values({
         userId: session.user?.id,
         direction: "outbound",
-        status: scheduledAt ? "scheduled" : "queued",
+        status: invalidTo ? "failed" : scheduledAt ? "scheduled" : "queued",
+        errorMessage: invalidTo
+          ? `Invalid recipient number "${rawTo}". Enter a 10-digit US number or full international format (e.g. +17185551234).`
+          : null,
         fromNumber,
         fromName: resolvedFromName || null,
         toNumber,
@@ -111,6 +122,11 @@ export async function POST(req: Request) {
         broadcastId: broadcastId ?? null,
       })
       .returning()
+
+    if (invalidTo) {
+      results.push({ id: fax.id, toNumber: rawTo, status: "failed" })
+      continue
+    }
 
     if (scheduledAt) {
       results.push({ id: fax.id, toNumber, status: "scheduled" })

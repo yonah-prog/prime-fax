@@ -5,6 +5,7 @@ import { notifyFaxReceived } from "@/lib/email"
 import { verifyTelnyxWebhook } from "@/lib/telnyx-verify"
 import { uploadToDriveForAll } from "@/lib/google-drive"
 import { sendFax } from "@/lib/telnyx"
+import { toE164 } from "@/lib/phone"
 import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
@@ -107,7 +108,7 @@ export async function POST(req: Request) {
     // Auto-forward to an outside number if this receiving number is configured for it
     if (fileUrl) {
       try {
-        const forwardTo = numberRecord?.forwardToNumber?.trim()
+        const forwardTo = toE164(numberRecord?.forwardToNumber)
         if (forwardTo) {
           const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/telnyx`
           const [fwd] = await db.insert(faxes).values({
