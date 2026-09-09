@@ -135,6 +135,35 @@ export default function FaxToolbar({
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
   const [downloading, setDownloading] = useState(false)
+  const [acting, setActing] = useState(false)
+
+  async function bulkAll(action: "trash" | "delete" | "restore") {
+    if (acting) return
+    const n = faxIds.length
+    if (n === 0) { showToast("No faxes to update", "error"); return }
+    const verb = action === "delete" ? "permanently delete" : action === "trash" ? "move to trash" : "restore"
+    const warn = action === "delete" ? " This cannot be undone." : ""
+    if (!confirm(`Are you sure you want to ${verb} all ${n} fax${n === 1 ? "" : "es"}?${warn}`)) return
+    setActing(true)
+    try {
+      const res = await fetch("/api/faxes/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: faxIds, action }),
+      })
+      if (!res.ok) {
+        const msg = await res.json().catch(() => null)
+        showToast(msg?.error ?? "Action failed", "error")
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      const affected = data?.affected ?? n
+      showToast(`${affected} fax${affected === 1 ? "" : "es"} ${action === "trash" ? "moved to trash" : action === "restore" ? "restored" : "deleted"}`)
+      startTransition(() => router.refresh())
+    } finally {
+      setActing(false)
+    }
+  }
 
   async function downloadAll() {
     if (downloading) return
@@ -211,11 +240,11 @@ export default function FaxToolbar({
         <Btn icon={<IcoDownload />} label="Download All" active={downloading} onClick={downloadAll} />
         {isTrash ? (
           <>
-            <Btn icon={<IcoTrash />} label="Delete All" danger />
-            <Btn icon={<IcoRestore />} label="Restore All" />
+            <Btn icon={<IcoTrash />} label="Delete All" danger active={acting} onClick={() => bulkAll("delete")} />
+            <Btn icon={<IcoRestore />} label="Restore All" active={acting} onClick={() => bulkAll("restore")} />
           </>
         ) : (
-          <Btn icon={<IcoTrash />} label="Trash All" danger count={total > 0 ? total : undefined} />
+          <Btn icon={<IcoTrash />} label="Trash All" danger count={total > 0 ? total : undefined} active={acting} onClick={() => bulkAll("trash")} />
         )}
       </div>
 

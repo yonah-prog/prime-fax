@@ -57,16 +57,18 @@ export default async function SentPage({
   const where = and(...base)
   const orderBy = buildOrder(sortBy)
 
-  const [totalRes, failedRes, pagesRes, rows, numbers, allUsers] = await Promise.all([
+  const [totalRes, failedRes, pagesRes, rows, allIdRows, numbers, allUsers] = await Promise.all([
     db.select({ value: count() }).from(faxes).where(where),
     db.select({ value: count() }).from(faxes).where(
       and(eq(faxes.direction, "outbound"), isNull(faxes.trashedAt), eq(faxes.status, "failed"))
     ),
     db.select({ value: sql<number>`COALESCE(SUM(${faxes.pages}), 0)::int` }).from(faxes).where(where),
     db.query.faxes.findMany({ where, orderBy, limit: PER_PAGE, offset: (page - 1) * PER_PAGE }),
+    db.select({ id: faxes.id }).from(faxes).where(where),
     db.query.phoneNumbers.findMany({ where: eq(phoneNumbers.active, true) }),
     db.query.users.findMany({ columns: { id: true, name: true, email: true }, orderBy: [asc(users.name)] }),
   ])
+  const allFaxIds = allIdRows.map((r) => r.id)
 
   const total = totalRes[0]?.value ?? 0
   const totalFaxPages = pagesRes[0]?.value ?? 0
@@ -96,7 +98,7 @@ export default async function SentPage({
           showDeletedToggle
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
-          faxIds={rows.map((r) => r.id)}
+          faxIds={allFaxIds}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

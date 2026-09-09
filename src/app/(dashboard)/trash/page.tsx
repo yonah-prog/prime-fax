@@ -32,12 +32,15 @@ export default async function TrashPage({
     ? eq(faxes.direction, "outbound")
     : eq(faxes.direction, "inbound")
 
-  const [rows, receivedCount, sentCount] = await Promise.all([
+  const [rows, allIdRows, receivedCount, sentCount] = await Promise.all([
     db.query.faxes.findMany({
       where: and(isNotNull(faxes.trashedAt), dirFilter, ...activeCond),
       orderBy: [desc(faxes.trashedAt)],
       limit: 100,
     }),
+    db.select({ id: faxes.id }).from(faxes).where(
+      and(isNotNull(faxes.trashedAt), dirFilter, ...activeCond)
+    ),
     db.select({ value: count() }).from(faxes).where(
       and(isNotNull(faxes.trashedAt), eq(faxes.direction, "inbound"), ...inboundCond)
     ),
@@ -45,6 +48,7 @@ export default async function TrashPage({
       and(isNotNull(faxes.trashedAt), eq(faxes.direction, "outbound"), ...outboundCond)
     ),
   ])
+  const allFaxIds = allIdRows.map((r) => r.id)
 
   const rc = receivedCount[0]?.value ?? 0
   const sc = sentCount[0]?.value ?? 0
@@ -57,7 +61,7 @@ export default async function TrashPage({
       </div>
 
       <Suspense>
-        <FaxToolbar total={rc + sc} isTrash faxIds={rows.map((r) => r.id)} />
+        <FaxToolbar total={activeTab === "sent" ? sc : rc} isTrash faxIds={allFaxIds} />
       </Suspense>
 
       <p className="text-sm text-gray-500 mb-4">
