@@ -57,7 +57,7 @@ export default async function TrashPage({
       </div>
 
       <Suspense>
-        <FaxToolbar total={rc + sc} isTrash />
+        <FaxToolbar total={rc + sc} isTrash faxIds={rows.map((r) => r.id)} />
       </Suspense>
 
       <p className="text-sm text-gray-500 mb-4">

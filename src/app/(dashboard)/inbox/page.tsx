@@ -92,6 +92,7 @@ export default async function InboxPage({
           showDeletedToggle
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers}
+          faxIds={rows.map((r) => r.id)}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

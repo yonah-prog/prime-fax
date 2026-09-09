@@ -1,7 +1,8 @@
 "use client"
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { useCallback, useTransition } from "react"
+import { useCallback, useState, useTransition } from "react"
+import { showToast } from "@/components/toast"
 
 function IcoCalendar() {
   return (
@@ -114,6 +115,8 @@ interface Props {
   showDeletedToggle?: boolean
   phoneNumbers?: { number: string; label: string | null }[]
   users?: { id: string; name: string; email?: string }[]
+  /** IDs of the faxes currently listed — used by "Download All". */
+  faxIds?: string[]
 }
 
 export default function FaxToolbar({
@@ -125,11 +128,43 @@ export default function FaxToolbar({
   showDeletedToggle = false,
   phoneNumbers = [],
   users = [],
+  faxIds = [],
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [, startTransition] = useTransition()
+  const [downloading, setDownloading] = useState(false)
+
+  async function downloadAll() {
+    if (downloading) return
+    if (faxIds.length === 0) { showToast("No faxes to download", "error"); return }
+    setDownloading(true)
+    try {
+      const res = await fetch("/api/faxes/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: faxIds }),
+      })
+      if (!res.ok) {
+        const msg = await res.json().catch(() => null)
+        showToast(msg?.error ?? "Download failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `faxes-${new Date().toISOString().slice(0, 10)}.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      showToast("Download started")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const hideFailed = searchParams.get("hideFailed") === "1"
   const unreadOnly = searchParams.get("unread") === "1"
@@ -173,7 +208,7 @@ export default function FaxToolbar({
         <Btn icon={<IcoHideFailed />} label="Hide Failed" count={failedCount} active={hideFailed} onClick={() => toggle("hideFailed", "1")} />
         <Btn icon={<IcoImage />} label="Image View" active={imageView} onClick={() => toggle("imageView", "1")} />
         <Btn icon={<IcoUnread />} label="Unread Only" count={unreadCount} active={unreadOnly} onClick={() => toggle("unread", "1")} />
-        <Btn icon={<IcoDownload />} label="Download All" />
+        <Btn icon={<IcoDownload />} label="Download All" active={downloading} onClick={downloadAll} />
         {isTrash ? (
           <>
             <Btn icon={<IcoTrash />} label="Delete All" danger />

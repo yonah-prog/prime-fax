@@ -96,6 +96,7 @@ export default async function SentPage({
           showDeletedToggle
           phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers.map((u) => ({ id: u.id, name: u.name, email: u.email }))}
+          faxIds={rows.map((r) => r.id)}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

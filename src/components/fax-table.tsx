@@ -193,6 +193,35 @@ export default function FaxTable({
     router.refresh()
   }
 
+  async function downloadSelected() {
+    if (selected.size === 0 || busy) return
+    setBusy(true)
+    try {
+      const res = await fetch("/api/faxes/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selected] }),
+      })
+      if (!res.ok) {
+        const msg = await res.json().catch(() => null)
+        showToast(msg?.error ?? "Download failed", "error")
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `faxes-${new Date().toISOString().slice(0, 10)}.zip`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      showToast(`Downloaded ${selected.size} fax(es)`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function singleAction(id: string, action: "trash" | "restore" | "delete") {
     if (action === "delete" && !confirm("Permanently delete this fax? This cannot be undone.")) return
     if (action === "delete") {
@@ -219,6 +248,7 @@ export default function FaxTable({
           <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
             <span className="font-medium text-blue-700">{selected.size} selected</span>
             <div className="flex gap-2 ml-auto">
+              <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Download</button>
               {isTrash ? (
                 <>
                   <button disabled={busy} onClick={() => bulk("restore")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Restore</button>
@@ -296,6 +326,7 @@ export default function FaxTable({
         <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
           <span className="font-medium text-blue-700">{selected.size} selected</span>
           <div className="flex gap-2 ml-auto">
+            <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Download</button>
             {isTrash ? (
               <>
                 <button disabled={busy} onClick={() => bulk("restore")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Restore</button>
