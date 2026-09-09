@@ -6,7 +6,8 @@ import { inArray } from "drizzle-orm"
 import { zipSync } from "fflate"
 import { NextResponse } from "next/server"
 
-const MAX_FAXES = 200
+const MAX_FAXES = 1000
+const CONCURRENCY = 12
 
 // Bulk-download the selected faxes as a single .zip of PDFs. Reuses downloadFaxFile
 // (credentialed R2 / plain HTTP) so it works regardless of where the file lives.
@@ -28,26 +29,38 @@ export async function POST(req: Request) {
       fileUrl: true, fileName: true, createdAt: true, userId: true,
     },
   })
-  // Only files the user is allowed to see.
-  const allowed = access.isAdmin ? rows : rows.filter((f) => canSeeFax(access, f))
+  // Only files the user is allowed to see. Newest first for stable ordering.
+  const allowed = (access.isAdmin ? rows : rows.filter((f) => canSeeFax(access, f)))
+    .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
 
+  // Fetch the PDFs in parallel (bounded concurrency) so large batches stay fast.
+  const buffers = new Map<string, Uint8Array>()
+  let cursor = 0
+  async function worker() {
+    while (cursor < allowed.length) {
+      const f = allowed[cursor++]
+      if (!f.fileUrl) continue
+      const buf = await downloadFaxFile(f.fileUrl)
+      if (buf) buffers.set(f.id, new Uint8Array(buf))
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, allowed.length) }, () => worker()))
+
+  // Build human-readable, unique filenames in stable (newest-first) order.
   const files: Record<string, Uint8Array> = {}
   const used = new Set<string>()
-  let ok = 0
   for (const f of allowed) {
-    if (!f.fileUrl) continue
-    const buf = await downloadFaxFile(f.fileUrl)
+    const buf = buffers.get(f.id)
     if (!buf) continue
-    // Human-readable, unique filename per fax.
     const who = (f.direction === "inbound" ? f.fromNumber : f.toNumber || "").replace(/[^\d+]/g, "") || "fax"
     const date = f.createdAt ? new Date(f.createdAt).toISOString().slice(0, 10) : "undated"
     let name = `${f.direction === "inbound" ? "from" : "to"}-${who}-${date}.pdf`
     let n = 2
     while (used.has(name)) name = `${f.direction === "inbound" ? "from" : "to"}-${who}-${date}-${n++}.pdf`
     used.add(name)
-    files[name] = new Uint8Array(buf)
-    ok++
+    files[name] = buf
   }
+  const ok = Object.keys(files).length
 
   if (ok === 0) {
     return NextResponse.json({ error: "None of the selected faxes have a downloadable file." }, { status: 404 })
