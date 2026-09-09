@@ -9,6 +9,18 @@ import { NextResponse } from "next/server"
 const MAX_FAXES = 1000
 const CONCURRENCY = 12
 
+// Date + 24h time (Eastern) for filenames — e.g. { date: "2026-09-09", time: "14-30-05" }.
+function stamp(d: Date | null | undefined): { date: string; time: string } {
+  if (!d) return { date: "undated", time: "00-00-00" }
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(d))
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "00"
+  return { date: `${g("year")}-${g("month")}-${g("day")}`, time: `${g("hour")}-${g("minute")}-${g("second")}` }
+}
+
 // Bulk-download the selected faxes as a single .zip of PDFs. Reuses downloadFaxFile
 // (credentialed R2 / plain HTTP) so it works regardless of where the file lives.
 export async function POST(req: Request) {
@@ -53,10 +65,12 @@ export async function POST(req: Request) {
     const buf = buffers.get(f.id)
     if (!buf) continue
     const who = (f.direction === "inbound" ? f.fromNumber : f.toNumber || "").replace(/[^\d+]/g, "") || "fax"
-    const date = f.createdAt ? new Date(f.createdAt).toISOString().slice(0, 10) : "undated"
-    let name = `${f.direction === "inbound" ? "from" : "to"}-${who}-${date}.pdf`
+    const { date, time } = stamp(f.createdAt)
+    // Filename leads with date, then time, then the other party's number.
+    const base = `${date}_${time}-${f.direction === "inbound" ? "from" : "to"}-${who}`
+    let name = `${base}.pdf`
     let n = 2
-    while (used.has(name)) name = `${f.direction === "inbound" ? "from" : "to"}-${who}-${date}-${n++}.pdf`
+    while (used.has(name)) name = `${base}-${n++}.pdf`
     used.add(name)
     files[name] = buf
   }
@@ -67,11 +81,11 @@ export async function POST(req: Request) {
   }
 
   const zip = zipSync(files, { level: 0 }) // PDFs are already compressed; store, don't re-deflate
-  const stamp = new Date().toISOString().slice(0, 10)
+  const today = new Date().toISOString().slice(0, 10)
   return new NextResponse(new Uint8Array(zip), {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="faxes-${stamp}.zip"`,
+      "Content-Disposition": `attachment; filename="faxes-${today}.zip"`,
       "Cache-Control": "no-store",
     },
   })

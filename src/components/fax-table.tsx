@@ -248,7 +248,7 @@ export default function FaxTable({
           <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
             <span className="font-medium text-blue-700">{selected.size} selected</span>
             <div className="flex gap-2 ml-auto">
-              <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Download</button>
+              <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 text-xs">Download Selected</button>
               {isTrash ? (
                 <>
                   <button disabled={busy} onClick={() => bulk("restore")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Restore</button>
@@ -326,7 +326,7 @@ export default function FaxTable({
         <div className="flex items-center gap-3 mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm">
           <span className="font-medium text-blue-700">{selected.size} selected</span>
           <div className="flex gap-2 ml-auto">
-            <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Download</button>
+            <button disabled={busy} onClick={downloadSelected} className="px-3 py-1 rounded bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 text-xs">Download Selected</button>
             {isTrash ? (
               <>
                 <button disabled={busy} onClick={() => bulk("restore")} className="px-3 py-1 rounded bg-white border border-gray-200 hover:bg-gray-50 text-blue-700 font-medium disabled:opacity-50 text-xs">Restore</button>
