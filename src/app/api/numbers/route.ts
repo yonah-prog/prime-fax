@@ -4,6 +4,7 @@ import { phoneNumbers } from "@/lib/db/schema"
 import { eq, desc, sql } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { requireAdmin } from "@/lib/require-admin"
+import { toE164 } from "@/lib/phone"
 
 export async function GET() {
   const session = await auth()
@@ -40,6 +41,9 @@ export async function POST(req: Request) {
   const { number, label, telnyxNumberId, isDefault } = body
 
   if (!number?.trim()) return NextResponse.json({ error: "Number is required" }, { status: 400 })
+  const normalized = toE164(number)
+  // toE164 passes SIP addresses through; only a real number can be a fax line.
+  if (!normalized?.startsWith("+")) return NextResponse.json({ error: "Enter a valid phone number, e.g. +15165551234" }, { status: 400 })
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
@@ -47,7 +51,7 @@ export async function POST(req: Request) {
 
   const [row] = await db
     .insert(phoneNumbers)
-    .values({ number: number.trim(), label: label?.trim() || null, telnyxNumberId: telnyxNumberId || null, isDefault: !!isDefault })
+    .values({ number: normalized, label: label?.trim() || null, telnyxNumberId: telnyxNumberId || null, isDefault: !!isDefault })
     .onConflictDoNothing()
     .returning()
 
