@@ -4,6 +4,7 @@ import { uploadToR2 } from "@/lib/storage"
 import { notifyFaxReceived } from "@/lib/email"
 import { verifyTelnyxWebhook } from "@/lib/telnyx-verify"
 import { uploadToDriveForAll } from "@/lib/google-drive"
+import { uploadToPortalDrive, portalFaxFileName } from "@/lib/portal-drive"
 import { sendFax } from "@/lib/telnyx"
 import { toE164 } from "@/lib/phone"
 import { eq } from "drizzle-orm"
@@ -56,10 +57,11 @@ export async function POST(req: Request) {
     // Per-line config for this receiving number (inbound Drive folder + forwarding)
     const numberRecord = await db.query.phoneNumbers.findFirst({
       where: eq(phoneNumbers.number, toNumber),
-      columns: { inboundDriveFolder: true, forwardToNumber: true, notifyEmail: true },
+      columns: { inboundDriveFolder: true, portalDriveFolderId: true, forwardToNumber: true, notifyEmail: true },
     })
 
     let fileUrl = payload.media_url as string | undefined
+    let inboundFile: { buffer: Buffer; contentType: string } | null = null
 
     // Re-host fax media on R2 for permanent storage; also mirror to all connected
     // Google Drives, into this line's inbound folder.
@@ -80,6 +82,7 @@ export async function POST(req: Request) {
           const buffer = Buffer.from(await res.arrayBuffer())
           const contentType = res.headers.get("content-type") ?? "application/pdf"
           fileUrl = await uploadToR2(buffer, `inbound/${randomUUID()}.pdf`, contentType)
+          inboundFile = { buffer, contentType }
           const driveFileName = `Inbound-${fromNumber}-${new Date().toISOString().slice(0, 10)}.pdf`
           uploadToDriveForAll(buffer, driveFileName, contentType, numberRecord?.inboundDriveFolder).catch((e) => console.error("Drive upload (inbound) failed:", e))
         } else {
@@ -91,7 +94,7 @@ export async function POST(req: Request) {
       }
     }
 
-    await db.insert(faxes).values({
+    const [inserted] = await db.insert(faxes).values({
       direction: "inbound",
       status: "received",
       fromNumber,
@@ -100,6 +103,18 @@ export async function POST(req: Request) {
       fileUrl,
       pages: pageCount,
     }).onConflictDoNothing({ target: faxes.telnyxFaxId })
+      .returning({ id: faxes.id, createdAt: faxes.createdAt })
+
+    // Copy into the shared portal Drive folder configured for this line. Skipped on a
+    // duplicate webhook (no row inserted) so retries don't create duplicate files.
+    const portalFolderId = numberRecord?.portalDriveFolderId?.trim()
+    if (inserted && inboundFile && portalFolderId) {
+      try {
+        await uploadToPortalDrive(inboundFile.buffer, portalFaxFileName(toNumber, inserted.createdAt, inserted.id), portalFolderId, inboundFile.contentType)
+      } catch (e) {
+        console.error(`Portal Drive upload failed for fax ${inserted.id}:`, e instanceof Error ? e.message : e)
+      }
+    }
 
     // Email notification — per-number address takes priority, falls back to global NOTIFY_EMAIL
     const notifyTarget = numberRecord?.notifyEmail?.trim() || undefined

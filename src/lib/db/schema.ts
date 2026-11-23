@@ -60,6 +60,9 @@ export const phoneNumbers = pgTable("phone_numbers", {
   coverSheetTemplateId: uuid("cover_sheet_template_id").references(() => coverSheetTemplates.id, { onDelete: "set null" }),
   googleDriveFolder: text("google_drive_folder"),
   inboundDriveFolder: text("inbound_drive_folder"),
+  // Google Drive folder ID (not name) in the shared portal Drive account. When set,
+  // every inbound fax on this line is also uploaded there — see lib/portal-drive.ts.
+  portalDriveFolderId: text("portal_drive_folder_id"),
   forwardToNumber: text("forward_to_number"),
   notifyEmail: text("notify_email"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
