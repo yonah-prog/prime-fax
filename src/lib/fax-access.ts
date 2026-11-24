@@ -13,6 +13,8 @@ export interface FaxAccess {
   canDelete: boolean
   /** Phone-number strings this user may see inbound faxes for. */
   numbers: string[]
+  /** The user's assigned main-line number, if any (used as the default inbox view). */
+  defaultNumber: string | null
 }
 
 /**
@@ -27,13 +29,24 @@ export async function getFaxAccess(): Promise<FaxAccess> {
   const role = (session?.user as { role?: string } | undefined)?.role
 
   if (!userId) {
-    return { isAdmin: false, userId: null, email: null, canViewInbound: false, canViewAllSent: false, canDelete: false, numbers: [] }
-  }
-  if (role === "admin") {
-    return { isAdmin: true, userId, email, canViewInbound: true, canViewAllSent: true, canDelete: true, numbers: [] }
+    return { isAdmin: false, userId: null, email: null, canViewInbound: false, canViewAllSent: false, canDelete: false, numbers: [], defaultNumber: null }
   }
 
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
+
+  // The user's assigned main line (if any) — used as the default inbox view.
+  let defaultNumber: string | null = null
+  if (user?.assignedNumberId) {
+    const assigned = await db.query.phoneNumbers.findFirst({
+      where: eq(phoneNumbers.id, user.assignedNumberId),
+      columns: { number: true },
+    })
+    defaultNumber = assigned?.number ?? null
+  }
+
+  if (role === "admin") {
+    return { isAdmin: true, userId, email, canViewInbound: true, canViewAllSent: true, canDelete: true, numbers: [], defaultNumber }
+  }
 
   const grants = await db
     .select({ number: phoneNumbers.number })
@@ -42,13 +55,7 @@ export async function getFaxAccess(): Promise<FaxAccess> {
     .where(eq(userPhoneNumbers.userId, userId))
 
   const numbers = new Set(grants.map((g) => g.number))
-  if (user?.assignedNumberId) {
-    const assigned = await db.query.phoneNumbers.findFirst({
-      where: eq(phoneNumbers.id, user.assignedNumberId),
-      columns: { number: true },
-    })
-    if (assigned?.number) numbers.add(assigned.number)
-  }
+  if (defaultNumber) numbers.add(defaultNumber)
 
   return {
     isAdmin: false,
@@ -58,6 +65,7 @@ export async function getFaxAccess(): Promise<FaxAccess> {
     canViewAllSent: !!user?.canViewAllSent,
     canDelete: !!user?.canDelete,
     numbers: [...numbers],
+    defaultNumber,
   }
 }
 

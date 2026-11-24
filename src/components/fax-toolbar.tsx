@@ -117,6 +117,8 @@ interface Props {
   users?: { id: string; name: string; email?: string }[]
   /** IDs of the faxes currently listed — used by "Download All". */
   faxIds?: string[]
+  /** The user's assigned main-line number; the number view defaults to it. */
+  defaultNumber?: string | null
 }
 
 export default function FaxToolbar({
@@ -129,6 +131,7 @@ export default function FaxToolbar({
   phoneNumbers = [],
   users = [],
   faxIds = [],
+  defaultNumber = null,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -198,7 +201,10 @@ export default function FaxToolbar({
   const hideFailed = searchParams.get("hideFailed") === "1"
   const unreadOnly = searchParams.get("unread") === "1"
   const showDateRange = searchParams.get("dateRange") === "1"
-  const selectedNumber = searchParams.get("number") ?? ""
+  // With no explicit number param, default the dropdown to the user's main line
+  // (when it's one of the pickable numbers); otherwise show all accessible numbers.
+  const hasDefault = !!defaultNumber && phoneNumbers.some((pn) => pn.number === defaultNumber)
+  const selectedNumber = searchParams.get("number") ?? (hasDefault ? (defaultNumber as string) : "all")
   const selectedUserId = searchParams.get("userId") ?? ""
   const imageView = searchParams.get("imageView") === "1"
   const sortBy = searchParams.get("sortBy") ?? "date_desc"
@@ -280,13 +286,13 @@ export default function FaxToolbar({
         {phoneNumbers.length > 0 && (
           <select
             value={selectedNumber}
-            onChange={(e) => update("number", e.target.value || null)}
+            onChange={(e) => update("number", e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
-            <option value="">All Numbers</option>
+            <option value="all">All Numbers</option>
             {phoneNumbers.map((p) => (
               <option key={p.number} value={p.number}>
-                {p.number}{p.label ? ` — ${p.label}` : ""}
+                {p.number}{p.label ? ` — ${p.label}` : ""}{p.number === defaultNumber ? "  (Main line)" : ""}
               </option>
             ))}
           </select>

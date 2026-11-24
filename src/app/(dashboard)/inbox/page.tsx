@@ -51,7 +51,14 @@ export default async function InboxPage({
   if (p.to) { const d = new Date(p.to); d.setDate(d.getDate() + 1); base.push(lte(faxes.createdAt, d)) }
   if (p.hideFailed === "1") base.push(ne(faxes.status, "failed"))
   if (p.unread === "1") base.push(isNull(faxes.readAt))
-  if (p.number) base.push(eq(faxes.toNumber, p.number))
+  // Number view: an explicit number filters to it; "all" shows every number the
+  // user can access; with no param, a user who can see more than one number
+  // defaults to their assigned main line.
+  const canSeeMultiple = access.isAdmin || access.numbers.length > 1
+  let numberFilter: string | null = null
+  if (p.number && p.number !== "all") numberFilter = p.number
+  else if (!p.number && access.defaultNumber && canSeeMultiple) numberFilter = access.defaultNumber
+  if (numberFilter) base.push(eq(faxes.toNumber, numberFilter))
   if (p.userId) base.push(eq(faxes.userId, p.userId))
 
   const where = and(...base)
@@ -77,6 +84,8 @@ export default async function InboxPage({
   const totalFaxPages = pagesRes[0]?.value ?? 0
   const totalPages = Math.ceil(total / PER_PAGE)
   const phoneLabels = Object.fromEntries(numbers.map((n) => [n.number, n.label ?? ""]))
+  // Numbers the user may pick from (staff: only their accessible numbers).
+  const pickableNumbers = access.isAdmin ? numbers : numbers.filter((n) => access.numbers.includes(n.number))
 
   return (
     <div>
@@ -92,9 +101,10 @@ export default async function InboxPage({
           total={total}
           totalFaxPages={totalFaxPages}
           showDeletedToggle
-          phoneNumbers={numbers.map((n) => ({ number: n.number, label: n.label }))}
+          phoneNumbers={pickableNumbers.map((n) => ({ number: n.number, label: n.label }))}
           users={allUsers}
           faxIds={allFaxIds}
+          defaultNumber={access.defaultNumber}
         />
       </Suspense>
       <div className="bg-white rounded-xl border border-gray-200 px-4">

@@ -51,7 +51,7 @@ export default async function SentPage({
   if (p.from) base.push(gte(faxes.createdAt, new Date(p.from)))
   if (p.to) { const d = new Date(p.to); d.setDate(d.getDate() + 1); base.push(lte(faxes.createdAt, d)) }
   if (p.hideFailed === "1") base.push(ne(faxes.status, "failed"))
-  if (p.number) base.push(eq(faxes.fromNumber, p.number))
+  if (p.number && p.number !== "all") base.push(eq(faxes.fromNumber, p.number))
   if (p.userId) base.push(eq(faxes.userId, p.userId))
 
   const where = and(...base)
