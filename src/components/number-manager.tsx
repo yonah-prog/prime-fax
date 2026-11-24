@@ -18,6 +18,7 @@ interface NumberWithCounts {
   inboundDriveFolder?: string | null
   forwardToNumber?: string | null
   notifyEmail?: string | null
+  intakeEnabled?: boolean
   createdAt: Date
   numUsersAssigned: number
   numUsersCanAccess: number
@@ -85,6 +86,7 @@ export default function NumberManager() {
   const [inboundFolder, setInboundFolder] = useState<string>("")
   const [forwardTo, setForwardTo] = useState<string>("")
   const [notifyEmail, setNotifyEmail] = useState<string>("")
+  const [intakeEnabled, setIntakeEnabled] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
 
   // Account-level Google Drive connection (admin)
@@ -127,6 +129,7 @@ export default function NumberManager() {
     setInboundFolder(number.inboundDriveFolder ?? "")
     setForwardTo(number.forwardToNumber ?? "")
     setNotifyEmail(number.notifyEmail ?? "")
+    setIntakeEnabled(!!number.intakeEnabled)
     setDetailTab("users")
     setShowPanel(false)
     setUsersLoading(true)
@@ -157,12 +160,12 @@ export default function NumberManager() {
     await fetch(`/api/numbers/${numberId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal }),
+      body: JSON.stringify({ inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal, intakeEnabled }),
     })
     setSavingSettings(false)
     await load()
     if (selectedNumber) {
-      setSelectedNumber((prev) => prev ? { ...prev, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal } : prev)
+      setSelectedNumber((prev) => prev ? { ...prev, inboundDriveFolder: inboundVal, forwardToNumber: forwardVal, notifyEmail: notifyVal, intakeEnabled } : prev)
     }
   }
 
@@ -774,6 +777,22 @@ export default function NumberManager() {
                         className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={intakeEnabled}
+                        onChange={(e) => setIntakeEnabled(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>
+                        <span className="block text-xs font-medium text-gray-700">Send to referral intake</span>
+                        <span className="block text-xs text-gray-500 mt-0.5">
+                          Faxes received on this number are passed to the referral intake queue to be read and reviewed.
+                          The fax still arrives in the inbox as usual.
+                        </span>
+                      </span>
+                    </label>
 
                     {drive && drive.configured && !drive.connected && (
                       <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">

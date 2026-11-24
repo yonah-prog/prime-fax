@@ -7,9 +7,25 @@ import { uploadToDriveForAll } from "@/lib/google-drive"
 import { uploadToPortalDrive, portalFaxFileName } from "@/lib/portal-drive"
 import { sendFax } from "@/lib/telnyx"
 import { toE164 } from "@/lib/phone"
+import { notifyIntake, notifyIntakeStatus, shouldNotifyIntake, intakeConfigured } from "@/lib/intake"
 import { eq } from "drizzle-orm"
-import { NextResponse } from "next/server"
+import { NextResponse, after } from "next/server"
 import { randomUUID } from "crypto"
+
+// Fax-backs sent for intake carry a reference_id; report their outcome to intake
+// after the response.
+function reportIntakeStatus(
+  rows: { id: string; referenceId: string | null }[],
+  status: "delivered" | "failed",
+  error: string | null,
+) {
+  if (!intakeConfigured()) return
+  for (const row of rows) {
+    const referenceId = row.referenceId
+    if (!referenceId) continue
+    after(() => notifyIntakeStatus({ faxId: row.id, referenceId, status, error }).then(() => {}))
+  }
+}
 
 export async function POST(req: Request) {
   const rawBody = await req.text()
@@ -29,17 +45,22 @@ export async function POST(req: Request) {
   const faxId = typeof payload.fax_id === "string" ? payload.fax_id : null
 
   if (event_type === "fax.delivered" && faxId) {
-    await db
+    const rows = await db
       .update(faxes)
       .set({ status: "delivered", pages: (payload.page_count as number) ?? null, updatedAt: new Date() })
       .where(eq(faxes.telnyxFaxId, faxId))
+      .returning({ id: faxes.id, referenceId: faxes.referenceId })
+    reportIntakeStatus(rows, "delivered", null)
   }
 
   if ((event_type === "fax.send.failed" || event_type === "fax.failed") && faxId) {
-    await db
+    const errorMessage = (payload.failure_reason as string) ?? "Unknown error"
+    const rows = await db
       .update(faxes)
-      .set({ status: "failed", errorMessage: (payload.failure_reason as string) ?? "Unknown error", updatedAt: new Date() })
+      .set({ status: "failed", errorMessage, updatedAt: new Date() })
       .where(eq(faxes.telnyxFaxId, faxId))
+      .returning({ id: faxes.id, referenceId: faxes.referenceId })
+    reportIntakeStatus(rows, "failed", errorMessage)
   }
 
   if (event_type === "fax.received") {
@@ -57,7 +78,7 @@ export async function POST(req: Request) {
     // Per-line config for this receiving number (inbound Drive folder + forwarding)
     const numberRecord = await db.query.phoneNumbers.findFirst({
       where: eq(phoneNumbers.number, toNumber),
-      columns: { inboundDriveFolder: true, portalDriveFolderId: true, forwardToNumber: true, notifyEmail: true },
+      columns: { label: true, inboundDriveFolder: true, portalDriveFolderId: true, forwardToNumber: true, notifyEmail: true, intakeEnabled: true },
     })
 
     let fileUrl = payload.media_url as string | undefined
@@ -114,6 +135,25 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error(`Portal Drive upload failed for fax ${inserted.id}:`, e instanceof Error ? e.message : e)
       }
+    }
+
+    // Announce to referral intake after the response, so Telnyx is never kept waiting
+    // on intake. Skipped on a duplicate webhook (no row inserted). A missed or failed
+    // announcement leaves intake_notified_at null for scripts/intake-replay.ts.
+    if (shouldNotifyIntake({ inserted: !!inserted, hasFile: !!fileUrl, line: numberRecord })) {
+      const event = {
+        faxId: inserted.id,
+        from: fromNumber,
+        to: toNumber,
+        lineLabel: numberRecord?.label ?? null,
+        pages: pageCount,
+        receivedAt: inserted.createdAt.toISOString(),
+      }
+      after(async () => {
+        if (await notifyIntake(event)) {
+          await db.update(faxes).set({ intakeNotifiedAt: new Date() }).where(eq(faxes.id, event.faxId))
+        }
+      })
     }
 
     // Email notification — per-number address takes priority, falls back to global NOTIFY_EMAIL

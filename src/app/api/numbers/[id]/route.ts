@@ -11,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params
   const body = await req.json()
-  const { label, isDefault, deptName, coverSheetTemplateId, inboundDriveFolder, portalDriveFolderId, forwardToNumber, notifyEmail } = body
+  const { label, isDefault, deptName, coverSheetTemplateId, inboundDriveFolder, portalDriveFolderId, forwardToNumber, notifyEmail, intakeEnabled } = body
 
   if (isDefault) {
     await db.update(phoneNumbers).set({ isDefault: false })
@@ -26,6 +26,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   if (portalDriveFolderId !== undefined) set.portalDriveFolderId = portalDriveFolderId?.trim() || null
   if (forwardToNumber !== undefined) set.forwardToNumber = forwardToNumber?.trim() || null
   if (notifyEmail !== undefined) set.notifyEmail = notifyEmail?.trim() || null
+  if (intakeEnabled !== undefined) set.intakeEnabled = intakeEnabled === true
 
   const [row] = await db
     .update(phoneNumbers)

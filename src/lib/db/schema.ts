@@ -65,6 +65,9 @@ export const phoneNumbers = pgTable("phone_numbers", {
   portalDriveFolderId: text("portal_drive_folder_id"),
   forwardToNumber: text("forward_to_number"),
   notifyEmail: text("notify_email"),
+  // When true, every inbound fax on this line is announced to the referral intake
+  // module (INTAKE_HOOK_URL) — see lib/intake.ts. Off by default: lines opt in.
+  intakeEnabled: boolean("intake_enabled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -94,6 +97,12 @@ export const faxes = pgTable("faxes", {
   readAt: timestamp("read_at"),
   trashedAt: timestamp("trashed_at"),
   broadcastId: uuid("broadcast_id"),
+  // Outbound: the intake referral a fax-back belongs to; delivery status is reported
+  // back to intake for any fax that carries one.
+  referenceId: text("reference_id"),
+  // Inbound: when intake acknowledged the fax.received announcement (2xx). Null on an
+  // intake-enabled line means it still needs announcing — see scripts/intake-replay.ts.
+  intakeNotifiedAt: timestamp("intake_notified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
