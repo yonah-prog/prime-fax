@@ -1,17 +1,24 @@
 import { db } from "@/lib/db"
-import { faxes } from "@/lib/db/schema"
+import { faxes, phoneNumbers } from "@/lib/db/schema"
 import { sendFax } from "@/lib/telnyx"
 import { uploadToR2 } from "@/lib/storage"
 import { generateCoverSheet, prependCoverSheet } from "@/lib/cover-sheet"
-import { eq } from "drizzle-orm"
+import { toE164 } from "@/lib/phone"
+import { and, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
-import { validateMedplumToken } from "@/lib/medplum-auth"
+import { validateServiceOrMedplum } from "@/lib/service-auth"
 
-// Machine-to-machine endpoint for the EHR.
-// Authenticated via Medplum JWT — no NextAuth session needed.
+// Machine-to-machine endpoint for the EHR (Medplum user token) and the referral
+// intake module (service token) — no NextAuth session needed.
+//
+// Optional fields beyond the EHR's original contract:
+//   from        — send from this line; must be one of our active numbers
+//                 (intake sends fax-backs from the line the referral came in on)
+//   referenceId — the intake referral this fax belongs to; its delivery status is
+//                 reported back to intake by the Telnyx webhook
 export async function POST(req: Request) {
-  if (!await validateMedplumToken(req.headers.get("authorization") ?? "")) {
+  if (!await validateServiceOrMedplum(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
@@ -20,7 +27,24 @@ export async function POST(req: Request) {
   const to = (form.get("to") as string | null)?.trim()
   if (!to) return NextResponse.json({ error: "Recipient fax number is required" }, { status: 400 })
 
-  const fromNumber = process.env.TELNYX_FROM_NUMBER!
+  const referenceId = (form.get("referenceId") as string | null)?.trim() || null
+  if (referenceId && referenceId.length > 200) {
+    return NextResponse.json({ error: "referenceId is too long" }, { status: 400 })
+  }
+
+  let fromNumber = process.env.TELNYX_FROM_NUMBER!
+  const requestedFrom = (form.get("from") as string | null)?.trim()
+  if (requestedFrom) {
+    const e164 = toE164(requestedFrom)
+    const line = e164
+      ? await db.query.phoneNumbers.findFirst({
+          where: and(eq(phoneNumbers.number, e164), eq(phoneNumbers.active, true)),
+          columns: { number: true },
+        })
+      : undefined
+    if (!line) return NextResponse.json({ error: "from must be one of our active fax lines" }, { status: 400 })
+    fromNumber = line.number
+  }
   const fromName = (form.get("fromName") as string | null) ?? "Premier Health"
   const recipientName = (form.get("recipientName") as string | null) ?? ""
   const subject = (form.get("subject") as string | null) ?? ""
@@ -84,6 +108,7 @@ export async function POST(req: Request) {
       coverSheetMessage: coverSheetMessage || null,
       fileUrl,
       fileName,
+      referenceId,
     })
     .returning()
 

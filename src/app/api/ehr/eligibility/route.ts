@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
-import { validateMedplumToken } from "@/lib/medplum-auth"
+import { validateServiceOrMedplum } from "@/lib/service-auth"
 
 const STEDI_BASE = "https://healthcare.us.stedi.com/2024-04-01"
 
 export async function POST(req: Request) {
-  if (!await validateMedplumToken(req.headers.get("authorization") ?? "")) {
+  // The EHR (Medplum user token) or the referral intake module (service token).
+  if (!await validateServiceOrMedplum(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
