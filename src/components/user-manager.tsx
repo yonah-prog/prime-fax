@@ -168,7 +168,9 @@ export default function UserManager({ initial, currentUserId, numbers }: Props) 
         {/* User table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* min-width forces the 12-column table to keep its natural width so
+                the wrapper scrolls horizontally instead of squishing/cutting columns */}
+            <table className="w-full min-w-[1100px] text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
                   <th className="px-4 pb-3 pt-4 whitespace-nowrap">Name</th>
